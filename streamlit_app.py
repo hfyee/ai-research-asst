@@ -1,12 +1,3 @@
-'''
-This Streamlit application code wraps the LangGraph logic into a user-friendly web interface. 
-It handles the "State" management so you can interact with the AI, pause to select themes, and then resume to generate the report.
-
-Source: Gemini Pro
-
-Prerequisites:
-pip install streamlit langgraph langchain-openai langchain-community tavily-python
-'''
 import streamlit as st
 import os
 from typing import TypedDict, List, Annotated
