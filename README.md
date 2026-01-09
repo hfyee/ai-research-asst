@@ -1,3 +1,3 @@
 # ai_research_assistant
-Research tool powered by Claude AI  
+Research tool vipe coded with Gemini Pro  
 Version v0
