@@ -51,7 +51,6 @@ llm = ChatOpenAI(
     max_tokens=1000,
 )
 
-
 # RAG v1: RagTool with ChromaDB as vector store
 vectordb: VectorDbConfig = {
     "provider": "chromadb", # alternative: qdrant
@@ -93,115 +92,6 @@ rag_tool.add(data_type="directory", path="./rag_docs")
 # Add content from web page
 rag_tool.add(data_type="website", url="https://onemotoring.lta.gov.sg/content/onemotoring/home/buying/vehicle-types-and-registrations/PAB.html")
 rag_tool.add(data_type="website", url="https://www.consumerreports.org/health/bikes/best-folding-bikes-a2576871382/")
-
-'''
-# RAG v3: Pinecone vector store with reranking
-
-# Start of RAG pipeline
-# RAG document loaders
-# Define a dictionary to map file extensions to their respective loaders
-file_loaders = {
-    '.pdf': PyMuPDFLoader,
-    '.txt': TextLoader,
-}
-
-# Define a function to create a DirectoryLoader for a specific file type
-def create_directory_loader(file_type, directory_path):
-    return DirectoryLoader(
-        path=directory_path,
-        glob=f"**/*{file_type}",
-        loader_cls=file_loaders[file_type],
-        show_progress=True
-    )
-
-# Create DirectoryLoader instances for each file type
-pdf_loader = create_directory_loader('.pdf', './rag_docs')
-txt_loader = create_directory_loader('.txt', './rag_docs')
-
-# Load the documents
-pdf_docs = pdf_loader.load()
-txt_docs = txt_loader.load()
-
-print(f"Loaded {len(pdf_docs)} PDF files.")
-for doc in pdf_docs:
-    print(f"Metadata:\n{doc.metadata}\n")
-    print(f"Content snippet:\n{doc.page_content[:100]}...\n")
-
-print(f"Loaded {len(txt_docs)} text files.")
-for doc in txt_docs:
-    print(f"Metadata:\n{doc.metadata}\n")
-    print(f"Content snippet:\n{doc.page_content[:100]}...\n")
-
-# Website loader
-urls = [
-    "https://onemotoring.lta.gov.sg/content/onemotoring/home/buying/vehicle-types-and-registrations/PAB.html",
-    "https://www.consumerreports.org/health/bikes/best-folding-bikes-a2576871382/"
-]
-
-web_loader = WebBaseLoader(urls)
-
-# Load the documents
-web_docs = web_loader.load()
-
-print(f"Loaded {len(web_docs)} URLs.")
-for doc in web_docs:
-    print(f"Metadata:\n{doc.metadata}\n")
-    print(f"Content snippet:\n{doc.page_content[:100]}...\n")
-
-# RAG text splitter
-# Split documents into chunks
-# chunk_overlap ~10% of chunk_size
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=500,chunk_overlap=50)
-
-all_docs = web_docs + txt_docs + pdf_docs
-#all_docs = txt_docs + pdf_docs
-
-split_docs = text_splitter.split_documents(all_docs)
-
-# RAG with Pinecone as vector store and reranking
-# Create RAG tool with custom configuration
-class PineconeRerankTool(BaseTool):
-    name: str = "Pinecone Advanced RAG Search"
-    description: str = (
-        "Useful for retrieving specific information from the internal knowledge base "
-        "stored in Pinecone with reranking. Use this to find documents, context, or past data."
-    )
-
-    index_name: str = "iti123-openai-index"
-
-    def _run(self, query: str) -> str:
-        # Initialize embeddings (must match what you used to ingest data)
-        embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=os.getenv('OPENAI_API_KEY'), dimensions=512)
-
-        vectorstore = PineconeVectorStore.from_existing_index(
-            index_name=self.index_name,
-            embedding=embeddings,
-        )
-
-        # Define base retriever (fetch more docs initially, e.g. 5-10)
-        retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 4})
-
-        # Initialize reranker (return top_n relevant documents)
-        compressor = PineconeRerank(model="bge-reranker-v2-m3", top_n=2)
-
-        # Create compression pipeline
-        rerank_retriever = ContextualCompressionRetriever(
-            base_compressor=compressor,
-            base_retriever=retriever
-        )
-
-        # Execute search
-        results = rerank_retriever.invoke(query)
-
-        # Format the output for the Agent
-        formatted_results = "\n\n".join([doc.page_content for doc in results])
-
-        return f"Retrieved Context:\n{formatted_results}"
-
-rag_tool = PineconeRerankTool(index_name="iti123-openai-index")
-
-# End of RAG pipeline
-'''
 
 # Define Agent Tools
 class GenerationTool(BaseTool):
