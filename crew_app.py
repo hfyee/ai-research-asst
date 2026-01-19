@@ -40,7 +40,7 @@ if st.button("Run Task"):
     if not product_category.strip():
         st.warning("Please enter a product category.")
     else:
-        with st.spinner("Router analyzing and assigning task..."):
+        with st.spinner("Bot analyzing question and executing task..."):
             # Run the crew
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
