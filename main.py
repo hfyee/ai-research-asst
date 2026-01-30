@@ -64,6 +64,8 @@ with st.sidebar:
     youtube_video_url = st.text_input("Video link for analysis:", value="https://www.youtube.com/watch?v=lhDoB9rGbGQ")
  
     image_url = st.text_input("Product image for color variation:", value="input_files/Tern-Verge-D9-black.jpg")
+    if image_url:
+        st.sidebar.image(image_url, caption='Product original image', width=200)
     #uploaded_image = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
     #image_url = uploaded_image.name if uploaded_image else ""
     
