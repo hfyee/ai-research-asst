@@ -77,7 +77,7 @@ with st.sidebar:
             if image_url:
                 st.sidebar.image(image_url, caption='Product original image', width=200)
             new_color = st.text_input("New color for product variant:", placeholder="e.g., white, blue, gold, red, green")
-    #st.divider()
+    st.divider()
     st.info("Version v0.2.0")
 
 # Check for API keys in environment variables
