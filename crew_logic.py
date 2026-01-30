@@ -57,7 +57,7 @@ from composio_openai_agents import OpenAIAgentsProvider
 # Using crewai.LLM
 llm = LLM(
     model="gpt-4o-mini",
-    api_key=os.getenv("OPENAI_API_KEY"),
+    api_key=os.environ("OPENAI_API_KEY"),
     temperature=0.2, # lower temp for focused management
     #max_completion_tokens=1000
 )
@@ -66,14 +66,14 @@ llm = LLM(
 qa_llm = ChatOpenAI(
     openai_api_base="https://api.openai.com/v1",
     model_name="gpt-4o-mini",
-    api_key=os.getenv("OPENAI_API_KEY"),
+    api_key=os.environ("OPENAI_API_KEY"),
     temperature=0.2 # lower temp for focused management
     #max_completion_tokens=1000
 )
 
 vision_llm = LLM(
     model="gpt-4o-mini",
-    api_key=os.getenv("OPENAI_API_KEY"),
+    api_key=os.environ("OPENAI_API_KEY"),
     temperature=0.2
 )
 
@@ -192,9 +192,9 @@ code_interpreter = CodeInterpreterTool()
 
 # Composio Reddit
 # Initialize Composio toolkits
-composio = Composio(provider=OpenAIAgentsProvider(), api_key=os.getenv('COMPOSIO_API_KEY'))
+composio = Composio(provider=OpenAIAgentsProvider(), api_key=os.environ('COMPOSIO_API_KEY'))
 # Composio Search toolkit, more than one tool
-composio_tools = composio.tools.get(user_id=os.getenv('COMPOSIO_USER_ID'), tools=["reddit"])
+composio_tools = composio.tools.get(user_id=os.environ('COMPOSIO_USER_ID'), tools=["reddit"])
 
 # Define agents and tasks
 video_researcher = Agent(
