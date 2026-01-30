@@ -81,7 +81,6 @@ os.environ["COMPOSIO_API_KEY"] = composio_api_key
 os.environ["COMPOSIO_USER_ID"] = composio_user_id
 
 # --- start of agentic system code ---
-
 # Load LLM
 # Using crewai.LLM
 llm = LLM(
@@ -509,7 +508,7 @@ async def main():
             #st.write(f"Generated Image URL: {result}")
             download_image(result, save_path=f"output_files/generated_variant_{new_color}.jpg")
             # Display generated image from URL
-            st.image(f"output_files/generated_variant_{new_color}.jpg", caption='Product variant imageL', width=200)
+            st.image(f"output_files/generated_variant_{new_color}.jpg", caption='Product variant image', width=200)
 
 
 # --- Start of run code ---
