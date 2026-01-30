@@ -66,20 +66,20 @@ with st.sidebar:
     image_url = st.text_input("Product image for color variation:", value="input_files/Tern-Verge-D9-black.jpg")
     #uploaded_image = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
     #image_url = uploaded_image.name if uploaded_image else ""
-    """
-    # As uploaded file is temporarily held in server RAM, we need to save it to a temp file for use with functions that require a file path
-    if uploaded_image:
-        # Create a temporary directory and file
-        with tempfile.TemporaryDirectory() as temp_dir:
-            path = os.path.join(temp_dir, uploaded_image.name)
-            with open(path, "wb") as f:
-                f.write(uploaded_image.getvalue())
-            image_url = path
     
-            if image_url:
-                st.sidebar.image(image_url, caption='Product original image', width=200)
-            new_color = st.text_input("New color for product variant:", placeholder="e.g., white, blue, gold, red, green")
-    """
+    # As uploaded file is temporarily held in server RAM, we need to save it to a temp file for use with functions that require a file path
+    #if uploaded_image:
+    #    # Create a temporary directory and file
+    #    with tempfile.TemporaryDirectory() as temp_dir:
+    #        path = os.path.join(temp_dir, uploaded_image.name)
+    #        with open(path, "wb") as f:
+    #            f.write(uploaded_image.getvalue())
+    #        image_url = path
+    # 
+    #        if image_url:
+    #            st.sidebar.image(image_url, caption='Product original image', width=200)
+    new_color = st.text_input("New color for product variant:", placeholder="e.g., white, blue, gold, red, green")
+    
     st.divider()
     st.info("Version v0.2.0")
 
