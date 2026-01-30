@@ -378,9 +378,9 @@ check_topic_task = Task(
 
 # Create a multimodal agent which comes pre-configured with AddImageTool to process images
 image_analyst = Agent(
-    role="Image Analyst",
+    role="Visual Quality Inspector",
     goal="Analyze product images and provide accurate and detailed descriptions",
-    backstory="Expert in visual product analysis with deep knowledge of design and features",
+    backstory="Senior quality control expert with expertise in visual inspection of consumer products.",
     multimodal=True,
     llm=vision_llm,
     verbose=True
