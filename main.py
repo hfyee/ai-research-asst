@@ -52,10 +52,10 @@ st.title("🦋 AI-powered Market Research Assistant")
 st.markdown("Hi, enter a folding bike product name, and let me help you with the market research.")
 
 # Access secrets
-openai_api_key = st.secrets("OPENAI_API_KEY")
-tavily_api_key = st.secrets("TAVILY_API_KEY")
-composio_api_key = st.secrets("COMPOSIO_API_KEY")
-composio_user_id = st.secrets("COMPOSIO_USER_ID")
+openai_api_key = st.secrets["OPENAI_API_KEY"]
+tavily_api_key = st.secrets["TAVILY_API_KEY"]
+composio_api_key = st.secrets["COMPOSIO_API_KEY"]
+composio_user_id = st.secrets["COMPOSIO_USER_ID"]
 
 # --- SIDEBAR: CONFIGURATION ---
 with st.sidebar:
