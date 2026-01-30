@@ -60,13 +60,6 @@ composio_user_id = st.secrets["COMPOSIO_USER_ID"]
 # --- SIDEBAR: CONFIGURATION ---
 with st.sidebar:
     st.header("⚙️ User inputs")
-    '''
-    openai_api_key = st.text_input("OpenAI API Key", type="password")
-    tavily_api_key = st.text_input("Tavily API Key", type="password")
-    composio_api_key = st.text_input("Composio API Key", type="password")
-    composio_user_id = st.text_input("Composio User ID", type="password")
-    st.divider()
-    '''
     product = st.text_input("Product name:", placeholder="e.g., Tern folding bike")
     youtube_video_url = st.text_input("Video link for analysis:", value="https://www.youtube.com/watch?v=lhDoB9rGbGQ")
  
