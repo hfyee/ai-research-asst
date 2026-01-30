@@ -3,15 +3,15 @@ Market research assistant, with RAG knowledge base pre-loaded with folding/e-bik
 Version v0
 '''
 # Install dependencies
-# !pip install crewai crewai_tools langchain_community langchain_openai langchain_pinecone langchain-tavily composio composio-openai-agents python-dotenv gdown requests
+# !pip install crewai crewai_tools langchain_community sentence-transformers langchain_openai langchain_pinecone langchain-tavily composio composio-openai-agents python-dotenv gdown requests
 #!pip install wikipedia youtube_search
 
 # Load environment variables
 import warnings
 warnings.filterwarnings("ignore")
 import os
-from dotenv import load_dotenv
-load_dotenv()
+#from dotenv import load_dotenv
+#load_dotenv()
 
 # Import crewai packages
 from crewai import Agent, Task, Crew, Process, LLM
@@ -72,7 +72,7 @@ qa_llm = ChatOpenAI(
 )
 
 vision_llm = LLM(
-    model="gpt-4o",
+    model="gpt-4o-mini",
     api_key=os.getenv("OPENAI_API_KEY"),
     temperature=0.2
 )
@@ -112,7 +112,7 @@ rag_tool = RagTool(
 )
 
 # Add directory of files, use its absolute path
-rag_docs_path = os.path.abspath('./rag_docs')
+rag_docs_path = os.path.abspath('rag_docs')
 rag_tool.add(data_type="directory", path=rag_docs_path)
 # Add content from web page
 rag_tool.add(data_type="website", url="https://onemotoring.lta.gov.sg/content/onemotoring/home/buying/vehicle-types-and-registrations/PAB.html")
@@ -169,9 +169,7 @@ class YouTubeSearchTool(BaseTool):
         return self.search.run(query)
     
 generation_tool = GenerationTool()
-#web_search_tool = TavilySearchTool()
 #web_search_tool = FirecrawlSearchTool()
-# "https://dahon.com/technology" (has pop-up)
 web_search_tool = TavilySearchTool(
     search_depth="basic",
     include_images = True,
@@ -180,18 +178,16 @@ web_search_tool = TavilySearchTool(
         "https://www.brompton.com/stories/design-and-engineering",
         "https://de.dahon.com/pages/technology?srsltid=AfmBOopaKrg-aASd49Nwetbyxas-XzNopsGSVhGln0IIx6IJPi1T39et",
         "https://www.straitstimes.com/paid-press-releases/dahon-v-a-revolutionary-bike-tech-pushing-a-new-frontier-in-green-mobility-20250825",
-        "https://www.ternbicycles.com/en/explore/choosing-bike/tern-non-electric-bike-buyer-s-guide"
+        "https://www.ternbicycles.com/en/explore/choosing-bike/tern-non-electric-bike-buyer-s-guide",
+        "https://www.cyclingnews.com/reviews/"
     ])
 
 wiki_tool = WikipediaTool() # for quick, general topical overview, as a starting point for research
 dalle_tool = DallEImageTool()
 youtube_tool = YouTubeSearchTool() # web scraping on YouTube search results page
 #youtube_rag_tool = YoutubeVideoSearchTool(youtube_video_url='https://www.youtube.com/watch?v=lhDoB9rGbGQ', summarize=True)
-youtube_rag_tool = YoutubeVideoSearchTool(summarize=True) # semantic search within content of Youtube video
-#pdf_search_tool = PDFSearchTool(pdf='https://onemotoring.lta.gov.sg/content/dam/onemotoring/Buying/PDF/PAB/List_of_Approved_PAB_Models.pdf')
-#lta_website_tool = WebsiteSearchTool(website='https://onemotoring.lta.gov.sg/content/onemotoring/home/buying/vehicle-types-and-registrations/PAB.html')
-#dir_search_tool = DirectorySearchTool(directory='./ebike_docs')
-file_writer_tool = FileWriterTool(directory='./output_files')
+youtube_rag_tool = YoutubeVideoSearchTool(summarize=True)
+file_writer_tool = FileWriterTool(directory='output_files')
 code_interpreter = CodeInterpreterTool()
 
 # Composio Reddit
@@ -204,7 +200,7 @@ composio_tools = composio.tools.get(user_id=os.getenv('COMPOSIO_USER_ID'), tools
 video_researcher = Agent(
     role="Video Researcher",
     goal="Extract relevant information from YouTube videos",
-    backstory='You are an expert researcher who specializes in analyzing video content.',
+    backstory='You have a strong background in analyzing video content.',
     tools=[youtube_rag_tool],
     verbose=True,
 )
@@ -221,20 +217,16 @@ reddit_researcher = Agent(
 
 market_researcher = Agent(
     role='Market Researcher',
-    goal="""Conduct comprehensive market research and in-depth competitive analysis
-    about the assigned product.""",
-    backstory="""You have years of experience conducting market research and helping
-    consumer goods companies understand product demand and improve marketing efforts.
-    You excel at analyzing consumer preferences, behaviors, and competitor strategies.
-    """,
+    goal="Conduct comprehensive market research about the assigned product.",
+    backstory="""You are an experienced market analyst with expertise in identifying 
+    market trends and opportunities as well as understanding consumer behavior.""",
     tools=[rag_tool, web_search_tool, wiki_tool, youtube_tool],
-    allow_delegation=False,
+    allow_delegation=True,
     max_iter=5,
     llm=llm,
     verbose=True
 )
 
-# product marketing strategy / competitive analysis report
 writer = Agent(
     role='Writer',
     goal="""Create a clear competitive analysis report for the assigned product that
@@ -244,8 +236,8 @@ writer = Agent(
     You have a gift for combining market research and competitive analysis to find
     a competitive advantage for consumer product companies. You are able to explain
     complex concepts in accessible language.""",
-    tools=[file_writer_tool],
-    allow_delegation=False,
+    tools=[rag_tool, file_writer_tool],
+    allow_delegation=True,
     max_iter=5,
     llm=llm,
     verbose=True
@@ -253,14 +245,13 @@ writer = Agent(
 
 content_reviewer = Agent(
     role="Content Reviewer and Editor",
-    goal="""Ensure content is accurate, comprehensive, well-structured, and insightful
-    with clear takeaways.""",
+    goal="Ensure content is accurate, well-structured, and with clear takeaways.",
     backstory="""You are a meticulous editor with an MBA and years of experience
     reviewing market reports by consultants. You have an eye for clarity and coherence.
     You excel at improving content, while maintaining the original author's voice
-    and ensuring consistent quality across multiple sections in the report.""",
-    tools=[youtube_tool, file_writer_tool],
-    allow_delegation=False,
+    and ensuring consistent quality across multiple sections of the report.""",
+    tools=[youtube_rag_tool, file_writer_tool],
+    allow_delegation=True,
     max_iter=5,
     llm=llm,
     verbose=True
@@ -286,32 +277,32 @@ video_research_task = Task(
     comprehensive summary of the main points.""",
     expected_output="""A detailed summary of the R&D strategy behind Brompton's
     first electric folding bike from the video.""",
-    human_input=False,
-    output_file='./output_files/youtube_video.md',
+    #output_file='./output_files/youtube_video.md',
     agent=video_researcher,
 )
 
 reddit_search_task = Task(
     description='Search Reddit forums to get consumer feedback on a product.',
     expected_output="A helpful response addressing the user's request",
-    output_file='./output_files/reddit.md',
+    #output_file='./output_files/reddit.md',
     agent=reddit_researcher,
 )
 
 market_research_task = Task(
-    description="""Conduct market research and product competitive analysis for
-    the consumer product {product}.""",
-    expected_output="""Comprehensive, accurate and unbiased competitive analysis
-    that is useful for formulating a product strategy""",
-    context=[reddit_search_task],
-    human_input=False,
-    output_file='./output_files/market_research.md',
+    description="""Research the market for {product}. Include:
+    1. Key market trends
+    2. Product demand
+    3. Market size
+    4. Consumer preferences and willingness to pay
+    5. Major competitors""",
+    expected_output="A well-structured, comprehensive report in Markdown format.",
+    context=[video_research_task, reddit_search_task],
+    #output_file='output_files/market_research.md',
     agent=market_researcher
 )
 
-# product strategy / competitive analysis report
 writing_task = Task(
-    description="""Write a competitive analysis report for consumer product {product}.
+    description="""Write a competitive analysis report on consumer product {product}.
 
     Target audience: Product Marketing Manager for {product} company
 
@@ -325,11 +316,9 @@ writing_task = Task(
     - Include relevant image and video links.
 
     """,
-    expected_output="""A full-fledged report with appropriate headings, lists and 
-    emphasis. Formatted as markdown.""",
+    expected_output="A well-structured, comprehensive report in Markdown format.",
     context=[video_research_task, market_research_task],
-    human_input=False,
-    output_file='./output_files/draft_report.md',
+    #output_file='./output_files/draft_report.md',
     agent=writer
 )
 
@@ -339,18 +328,16 @@ review_task = Task(
     Target audience: Product Marketing Manager for {product} company
 
     Your review should:
-    - Fix any grammatical or spelling errors
-    - Fix any broken image or video links
-    - Improve clarity and readability
-    - Ensure content is comprehensive and accurate
-    - Enhance the structure and flow
-    - Add any missing information
+    1. Check for consistency in tone and style
+    2. Improve clarity and readability
+    3. Ensure content is comprehensive and accurate
+    4. Use the 'YoutubeVideoSearchTool' to verify the validity of any image or YouTube video links
+    5. Check for bias and suggest improvements
+
     """,
-    expected_output="""'An improved, polished version of the Markdown report that
+    expected_output="""'An improved, polished version of the report that
     maintains the original structure but enhances clarity, accuracy and consistency.""",
     context=[writing_task],
-    human_input=False,
-    output_file='./output_files/final_report.md',
     agent=content_reviewer
 )
 
@@ -389,7 +376,7 @@ image_artist = Agent(
 describe_image_task = Task(
     description="""Analyze the product image at {image_url} and provide a detailed description""",
     expected_output="An accurate and detailed description of the product image",
-    output_file='./output_files/image_description.md',
+    #output_file='./output_files/image_description.md',
     agent=image_analyst
 )
 
@@ -405,29 +392,6 @@ generate_image_task = Task(
     agent=image_artist,
     result_as_answer=True
 )
-
-# Validate inputs before passing to crew
-class InputValidator(BaseModel):
-    product: str
-    youtube_video_url: str
-    image_url: str
-    new_color: str
-    specific_topic: str
-
-    @field_validator('product', 'youtube_video_url', 'image_url', 'new_color', 'specific_topic')
-    @classmethod
-    def check_not_empty(cls, v) -> str:
-        if v is None or len(v.strip()) == 0:
-            raise ValueError('Field cannot be null or empty')
-        return v
-    
-    @field_validator('image_url')
-    @classmethod
-    def check_file_exists(cls, v: str) -> str:
-        # Check if the file exists using pathlib
-        if not Path(v).exists():
-            raise ValueError(f"File not found: {v}")
-        return v
 
 # Define the crews
 guard_crew = Crew(
@@ -445,7 +409,7 @@ crew_1 = Crew(
     planning=True,
     memory=True, # enable memory to keep context
     verbose=False,
-    output_log_file="./output_files/crew_mkt_log"
+    #output_log_file="output_files/crew_mkt_log"
 )
 
 # A/B testing crew
@@ -455,6 +419,6 @@ crew_2 = Crew(
     process=Process.sequential,
     planning=False,
     verbose=False,
-    output_log_file="./output_files/crew_ab_log"
+    #output_log_file="output_files/crew_ab_log"
 )
     

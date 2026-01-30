@@ -13,7 +13,7 @@ import requests
 import re
 
 import crew_logic
-from crew_logic import guard_crew, crew_1, crew_2, InputValidator
+from crew_logic import guard_crew, crew_1, crew_2
 
 st.set_page_config(page_title="AI-powered Market Research Assistant", page_icon="🦋", layout="wide")
 st.title("🦋 AI-powered Market Research Assistant")
@@ -22,10 +22,15 @@ st.markdown("Hi, enter a folding bike product name, and let me help you with the
 # --- SIDEBAR: CONFIGURATION ---
 with st.sidebar:
     st.header("⚙️ User inputs")
-    product = st.text_input("Product name:", placeholder="e.g., Brompton C Line folding bike")
+    openai_api_key = st.text_input("OpenAI API Key", type="password")
+    tavily_api_key = st.text_input("Tavily API Key", type="password")
+    composio_api_key = st.text_input("Composio API Key", type="password")
+    composio_user_id = st.text_input("Composio User ID", type="password")
+    st.divider()
+    product = st.text_input("Product name:", placeholder="e.g., Tern folding bike")
     youtube_video_url = st.text_input("Video link for analysis:", value="https://www.youtube.com/watch?v=lhDoB9rGbGQ")
     #uploaded_image = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
-    image_url = st.text_input("Product image for color variation:", value="./input_files/Brompton_Electric_C_Line_dune.jpg")
+    image_url = st.text_input("Product image for color variation:", value="input_files/Tern-Verge-D9-black.jpg")
     if image_url:
         st.sidebar.image(image_url, caption='Product original image', width=200)
     new_color = st.text_input("New color for product variant:", placeholder="e.g., white, blue, gold, red, green")
@@ -33,15 +38,40 @@ with st.sidebar:
     st.info("Version v0.2.0")
 
 # Check for API keys in environment variables
-os.environ['OPENAI_API_KEY'] = os.getenv('OPENAI_API_KEY')
-os.environ['TAVILY_API_KEY'] = os.getenv('TAVILY_API_KEY')
-os.environ['PINECONE_API_KEY'] = os.getenv('PINECONE_API_KEY')
-
-if not os.environ["OPENAI_API_KEY"] or not os.environ['TAVILY_API_KEY'] or not os.environ['PINECONE_API_KEY']:
-    st.warning("Please check that your API keys are loaded to proceed.")
+# Check for keys
+if not openai_api_key or not tavily_api_key or not composio_api_key or not composio_user_id:
+    st.warning("Please enter your API keys in the sidebar to proceed.")
     st.stop()
 
-# Custom functions
+# Set Environment Variables for LangChain
+os.environ["OPENAI_API_KEY"] = openai_api_key
+os.environ["TAVILY_API_KEY"] = tavily_api_key
+os.environ["COMPOSIO_API_KEY"] = composio_api_key
+os.environ["COMPOSIO_USER_ID"] = composio_user_id
+
+# Custom classes & functions
+# Validate inputs before passing to crew
+class InputValidator(BaseModel):
+    product: str
+    youtube_video_url: str
+    image_url: str
+    new_color: str
+    specific_topic: str
+
+    @field_validator('product', 'youtube_video_url', 'image_url', 'new_color', 'specific_topic')
+    @classmethod
+    def check_not_empty(cls, v) -> str:
+        if v is None or len(v.strip()) == 0:
+            raise ValueError('Field cannot be null or empty')
+        return v
+    
+    @field_validator('image_url')
+    @classmethod
+    def check_file_exists(cls, v: str) -> str:
+        # Check if the file exists using pathlib
+        if not Path(v).exists():
+            raise ValueError(f"File not found: {v}")
+        return v
 
 async def run_crew_async(crew: Crew, inputs: dict):
     return crew.kickoff(inputs=inputs)
@@ -60,23 +90,6 @@ def download_image(image_url, save_path="./generated_image.png"):
     except requests.exceptions.RequestException as e:
         print(f"An error occurred during download: {e}")
 
-def download_image_v2(image_url, save_path):
-    """
-    Downloads an image from a direct URL and saves it to a file.
-    """
-    try:
-        response = requests.get(image_url, stream=True)
-        response.raise_for_status() # Check for bad responses
-
-        with open(save_path, 'wb') as file:
-            # Write the image content in chunks to handle large files efficiently
-            for chunk in response.iter_content(1024):
-                file.write(chunk)
-        print(f"Image successfully downloaded and saved to {save_path}")
-
-    except requests.exceptions.RequestException as e:
-        print(f"An error occurred: {e}")
-
 async def main():
     results = await asyncio.gather(
         crew_1.kickoff_async(inputs=validated_data.dict()),
@@ -91,15 +104,15 @@ async def main():
         st.write(f"Crew {i} Result:", result.raw)
         if i == 2:
             #st.write(f"Generated Image URL: {result}")
-            download_image(result, save_path=f"./output_files/generated_variant_{new_color}.jpg")
+            download_image(result, save_path=f"output_files/generated_variant_{new_color}.jpg")
             # Display generated image from URL
-            st.image(f"./output_files/generated_variant_{new_color}.jpg", caption='Product variant imageL', width=200)
+            st.image(f"output_files/generated_variant_{new_color}.jpg", caption='Product variant imageL', width=200)
 
 
 # Start of run code
 
 # Remove all existing files in output_files folder
-folderPath = "./output_files"
+folderPath = "output_files"
 if not os.path.exists(folderPath):
     os.makedirs(folderPath)
 else:
