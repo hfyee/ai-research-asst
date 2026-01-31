@@ -63,12 +63,17 @@ with st.sidebar:
     product = st.text_input("Product name:", placeholder="e.g., Tern folding bike")
     youtube_video_url = st.text_input("Video link for analysis:", value="https://www.youtube.com/watch?v=lhDoB9rGbGQ")
  
-    image_url = st.text_input("Product image for color variation:", value="input_files/Tern-Verge-D9-black.jpg")
+    #image_url = st.text_input("Product image for color variation:", value="input_files/Tern-Verge-D9-black.jpg")
+    folderPath = os.path.abspath('input_files')
+    filesList = glob.glob(folderPath + "/*")
+    basenames = [os.path.basename(f) for f in filesList]
+    selected_image = st.selectbox("Select product image for color variation:", 
+                             options=basenames, index=0)
+    image_url = os.path.join(folderPath, selected_image)
     if image_url:
         st.sidebar.image(image_url, caption='Product original image', width=200)
     #uploaded_image = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
     #image_url = uploaded_image.name if uploaded_image else ""
-    
     # As uploaded file is temporarily held in server RAM, we need to save it to a temp file for use with functions that require a file path
     #if uploaded_image:
     #    # Create a temporary directory and file
@@ -538,7 +543,6 @@ else:
     # Get list of all the files in the folder
     filesList = glob.glob(folderPath + "/*")
     for file in filesList:
-        #print("Removing file {}".format(file))
         os.remove(file)
 
 if st.button("Run Task"):
