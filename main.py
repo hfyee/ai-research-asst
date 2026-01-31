@@ -122,7 +122,7 @@ qa_llm = ChatOpenAI(
 )
 
 vision_llm = LLM(
-    model="gpt-4o-mini",
+    model="gpt-4o",
     api_key=openai_api_key,
     temperature=0.2
 )
