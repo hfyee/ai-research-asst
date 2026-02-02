@@ -392,7 +392,8 @@ review_task = Task(
 )
 
 check_topic_task = Task(
-    description="""Analyze the user input: {product}. Determine if it is about {specific_topic}.
+    description="""Analyze the user input: {product} and {new_color}. 
+    Determine if {product} is about {specific_topic} AND {new_color} is a valid color.
     Return 'ON_TOPIC' or 'OFF_TOPIC'.""",
     expected_output='A string: "ON_TOPIC" or "OFF_TOPIC"',
     agent=topic_guard_agent
@@ -424,7 +425,7 @@ image_artist = Agent(
 
 # Create a task for image analysis
 describe_image_task = Task(
-    description="""Analyze the product image at {image_url} and provide a detailed description""",
+    description="""Analyze the product image at {image_url}. Describe the image in detail.""",
     expected_output="An accurate and detailed description of the product image",
     #output_file='./output_files/image_description.md',
     agent=image_analyst
@@ -564,7 +565,7 @@ if st.button("Run Task"):
 
             # Check for termination condition
             if "OFF_TOPIC" in result.raw:
-                st.warning(f"Session terminated: {product} is off-topic and not allowed.")
+                st.warning(f"Session terminated: please check your inputs.")
             else:
                 # Proceed with main agents
                 #await main() # async cannot be outside async function
