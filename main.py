@@ -656,8 +656,8 @@ async def main():
     st.markdown("### ✨ Results:")
 
     for i, result in enumerate(results, 1):
-        st.write(f"Crew {i} Result:", result.raw)
         if i==1:
+            st.write(f"Crew {i} Result:", result.raw)
             # Display sentiment word clouds
             filesList = glob.glob(folderPath + "/*.png")
             for file in filesList:
@@ -667,6 +667,7 @@ async def main():
         if i == 2:
             st.divider()
             download_image(result, save_path=f"output_files/generated_variant_{new_color}.jpg")
+            st.write(f"Crew {i} Result:")
             st.image(f"output_files/generated_variant_{new_color}.jpg", caption='Product variant image', width=200)
 
 
