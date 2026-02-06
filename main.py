@@ -4,7 +4,7 @@ import glob
 import tempfile
 import asyncio
 # USER_AGENT must be set before any crewai or langchain imports
-#os.environ["USER_AGENT"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+os.environ["USER_AGENT"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
 
 # Import crewai packages
 from crewai import Agent, Task, Crew, Process, LLM
@@ -45,6 +45,16 @@ import requests
 from composio import Composio
 from composio_openai_agents import OpenAIAgentsProvider
 
+# Import YOLO model for objection detection
+from PIL import Image
+from ultralytics import YOLO
+# For base64 encoding
+import base64 
+import io
+
+# Import package for word cloud generation
+from wordcloud import WordCloud
+
 # --- PAGE CONFIG ---
 
 st.set_page_config(page_title="AI-powered Market Research Assistant", page_icon="🦋", layout="wide")
@@ -56,6 +66,7 @@ openai_api_key = st.secrets["OPENAI_API_KEY"]
 tavily_api_key = st.secrets["TAVILY_API_KEY"]
 composio_api_key = st.secrets["COMPOSIO_API_KEY"]
 composio_user_id = st.secrets["COMPOSIO_USER_ID"]
+gemini_api_key = st.secrets["GEMINI_API_KEY"]
 
 # --- SIDEBAR: CONFIGURATION ---
 with st.sidebar:
@@ -63,7 +74,6 @@ with st.sidebar:
     product = st.text_input("Product name:", placeholder="e.g., Tern folding bike")
     youtube_video_url = st.text_input("Video link for analysis:", value="https://www.youtube.com/watch?v=lhDoB9rGbGQ")
  
-    #image_url = st.text_input("Product image for color variation:", value="input_files/Tern-Verge-D9-black.jpg")
     folderPath = os.path.abspath('input_files')
     filesList = glob.glob(folderPath + "/*")
     basenames = [os.path.basename(f) for f in filesList]
@@ -72,19 +82,6 @@ with st.sidebar:
     image_url = os.path.join(folderPath, selected_image)
     if image_url:
         st.sidebar.image(image_url, caption='Product original image', width=200)
-    #uploaded_image = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
-    #image_url = uploaded_image.name if uploaded_image else ""
-    # As uploaded file is temporarily held in server RAM, we need to save it to a temp file for use with functions that require a file path
-    #if uploaded_image:
-    #    # Create a temporary directory and file
-    #    with tempfile.TemporaryDirectory() as temp_dir:
-    #        path = os.path.join(temp_dir, uploaded_image.name)
-    #        with open(path, "wb") as f:
-    #            f.write(uploaded_image.getvalue())
-    #        image_url = path
-    # 
-    #        if image_url:
-    #            st.sidebar.image(image_url, caption='Product original image', width=200)
     new_color = st.text_input("New color for product variant:", placeholder="e.g., white, blue, gold, red, green")
     
     st.divider()
@@ -101,6 +98,7 @@ os.environ["OPENAI_API_KEY"] = openai_api_key
 os.environ["TAVILY_API_KEY"] = tavily_api_key
 os.environ["COMPOSIO_API_KEY"] = composio_api_key
 os.environ["COMPOSIO_USER_ID"] = composio_user_id
+os.environ['GEMINI_API_KEY'] = gemini_api_key
 
 # --- start of agentic system code ---
 # Load LLM
@@ -121,9 +119,15 @@ qa_llm = ChatOpenAI(
     #max_completion_tokens=1000
 )
 
+#vision_llm = LLM(
+#    model="gpt-4o",
+#    api_key=openai_api_key,
+#    temperature=0.2
+#)
+
 vision_llm = LLM(
-    model="gpt-4o",
-    api_key=openai_api_key,
+    model="gemini/gemini-2.5-flash-lite",
+    api_key=gemini_api_key,
     temperature=0.2
 )
 
@@ -246,7 +250,95 @@ composio = Composio(provider=OpenAIAgentsProvider(), api_key=composio_api_key)
 # Composio Search toolkit, more than one tool
 composio_tools = composio.tools.get(user_id=composio_user_id, tools=["reddit"])
 
+# YOLO object detection model for topic guard agent
+class YoloToolInput(BaseModel):
+    image_path: str = Field(..., description="URL or local path to the image.")
+
+class YoloDetectorTool(BaseTool):
+    name: str = "YOLO Object Detector"
+    description: str = "Detects objects in images using YOLO."
+    args_schema: Type[BaseModel] = YoloToolInput
+
+    def _run(self, image_path: str) -> str:
+        # Load image and model
+        #image = Image.open(requests.get(image_path).content) # URL
+        image = Image.open(image_path) # or local path
+        model = YOLO('yolo11n.pt')
+
+        # Run inference
+        results = model.predict(image, conf=0.5)
+
+        # Assuming only one image is processed and results is a list with one Results object
+        # Get the first (and likely only) results object
+        ultralytics_results = results[0]
+        labels = []
+        # Populate labels list for the LabelAnnotator
+        for box in ultralytics_results.boxes:
+            class_id = int(box.cls[0])
+            class_name = model.names[class_id]
+            confidence = box.conf[0]
+            print(f"Detected: {class_name} with confidence {confidence:.2f}")
+            labels.append(class_name)
+
+        # Return label of delected object class
+        return str(labels[0])
+
+yolo_detector_tool = YoloDetectorTool()
+
+# Custom tool to generate sentiments word cloud
+class WordCloudToolInput(BaseModel):
+    text: str = Field(description="The text to generate the word cloud from.")
+    colormap: str = Field(description="The color scheme for representing the words.")
+    output_image_path: str = Field(description="The path where the word cloud image will be saved.")
+
+class WordCloudGenerationTool(BaseTool):
+    name: str = "Word Cloud Generator"
+    description: str = "Generates a word cloud image based on input text and saves it to a specified path."
+    args_schema: Type[BaseModel] = WordCloudToolInput
+
+    def _run(self, text: str, colormap: str, output_image_path: str) -> str:
+        from wordcloud import WordCloud
+        wordcloud = WordCloud(width=800, height=400, background_color='white', colormap=colormap).generate(text)
+        wordcloud.to_file(output_image_path)
+        return f"Word cloud saved to {output_image_path}"
+
+word_cloud_tool = WordCloudGenerationTool()
+
+# Multimodal agent requires base64 encoding for image data
+# As base64 will exceed GPT-4o TPM limit of 30K, lower image resolution before encoding.
+class LowResBase64EncodingToolInput(BaseModel):
+    image_path: str = Field(..., description="The path to the image file to encode.")
+    max_width: int = Field(default=800, description="The maximum width to resize the image to, maintaining aspect ratio.")
+    max_height: int = Field(default=800, description="The maximum height to resize the image to, maintaining aspect ratio.")
+    quality: int = Field(default=60, description="The quality of the JPEG compression (0-100)."
+)
+
+class LowResBase64EncodingTool(BaseTool):
+    name: str = 'Image base64 encoding'
+    description: str = 'Useful for encoding an image file to a base64 string.'
+    args_schema: Type[BaseModel] = LowResBase64EncodingToolInput
+
+    def _run(self, image_path: str, max_width: int = 800, max_height: int = 800, quality: int = 60) -> str:
+        # Open and resize image
+        img = Image.open(image_path)
+        img.thumbnail((max_width, max_height)) # PIL's thumbnail expects a tuple
+
+        # Compress image in memory
+        buffer = io.BytesIO()
+        img.save(buffer, format="JPEG", quality=quality)
+        img_bytes = buffer.getvalue()
+
+        # Base64 Encode
+        encoded_string = base64.b64encode(img_bytes).decode('utf-8')
+        return encoded_string
+
+encode_image_base64 = LowResBase64EncodingTool()
+
 # Define agents and tasks
+
+# -----------------------------
+# Video researcher
+# ----------------------------
 video_researcher = Agent(
     role="Video Researcher",
     goal="Extract relevant information from YouTube videos",
@@ -255,6 +347,19 @@ video_researcher = Agent(
     verbose=True,
 )
 
+video_research_task = Task(
+    description="""Search for information about the R&D of Brompton's first electric
+    folding bike in the YouTube video at {youtube_video_url}, and provide a
+    comprehensive summary of the main points.""",
+    expected_output="""A detailed summary of the R&D strategy behind Brompton's
+    first electric folding bike from the video.""",
+    #output_file='./output_files/youtube_video.md',
+    agent=video_researcher,
+)
+
+# -----------------------------
+# Reddit researcher
+# -----------------------------
 reddit_researcher = Agent(
     role="Reddit Search Assistant",
     goal="Help users search Reddit effectively",
@@ -265,18 +370,57 @@ reddit_researcher = Agent(
     max_iter=5,
 )
 
+reddit_search_task = Task(
+    description='Search Reddit forums to get consumer feedback on {product}.',
+    expected_output="Consumer sentiment analysis from Reddit forums",
+    #output_file='./output_files/reddit.md',
+    agent=reddit_researcher,
+)
+
+visualize_sentiments_task = Task(
+    description="""Visualize sentiment counts provided by reddit_research task.
+    Use the 'WordCloudGenerationTool' to generate word clouds for positive feedback
+    and complaints. Specify 'Reds' for the colormap to represent negative feedback.
+    Specify 'PuBuGn' for the colormap to represent positive feedback.
+    The word clouds should be saved in the 'output_files' directory.
+    """,
+    tools=[word_cloud_tool],
+    context=[reddit_search_task],
+    expected_output="One word cloud for postive feedback, another word cloud for complaints.",
+    agent=reddit_researcher,
+)
+
+# -----------------------------
+# market researcher
+# -----------------------------
 market_researcher = Agent(
     role='Market Researcher',
     goal="Conduct comprehensive market research about the assigned product.",
     backstory="""You are an experienced market analyst with expertise in identifying 
     market trends and opportunities as well as understanding consumer behavior.""",
-    tools=[rag_tool, web_search_tool, wiki_tool, youtube_tool],
+    tools=[rag_tool, web_search_tool, youtube_tool],
     allow_delegation=True,
     max_iter=5,
     llm=llm,
     verbose=True
 )
 
+market_research_task = Task(
+    description="""Research the market for {product}. Include:
+    1. Key market trends
+    2. Product demand
+    3. Market size
+    4. Consumer preferences and willingness to pay
+    5. Major competitors""",
+    expected_output="A well-structured, comprehensive report in Markdown format.",
+    context=[reddit_search_task],
+    #output_file='output_files/market_research.md',
+    agent=market_researcher
+)
+
+# -----------------------------
+# writer
+# -----------------------------
 writer = Agent(
     role='Writer',
     goal="""Create a clear competitive analysis report for the assigned product that
@@ -291,64 +435,6 @@ writer = Agent(
     max_iter=5,
     llm=llm,
     verbose=True
-)
-
-content_reviewer = Agent(
-    role="Content Reviewer and Editor",
-    goal="Ensure content is accurate, well-structured, and with clear takeaways.",
-    backstory="""You are a meticulous editor with an MBA and years of experience
-    reviewing market reports by consultants. You have an eye for clarity and coherence.
-    You excel at improving content, while maintaining the original author's voice
-    and ensuring consistent quality across multiple sections of the report.""",
-    tools=[youtube_rag_tool, file_writer_tool],
-    allow_delegation=True,
-    max_iter=5,
-    llm=llm,
-    verbose=True
-)
-
-topic_guard_agent = Agent(
-    role='Topic Guardrail Agent',
-    goal='Ensure all user questions are strictly related to {specific_topic}.',
-    backstory="""You are a security expert specialized in ensuring that conversations
-    stay on-topic and tasks are within scope. If a question is off-topic, you
-    terminate the conversation and stop the crew.""",
-    verbose=True,
-    allow_delegation=False,
-    llm=llm
-)
-
-# -----------------------------
-# Tasks
-# -----------------------------
-video_research_task = Task(
-    description="""Search for information about the R&D of Brompton's first electric
-    folding bike in the YouTube video at {youtube_video_url}, and provide a
-    comprehensive summary of the main points.""",
-    expected_output="""A detailed summary of the R&D strategy behind Brompton's
-    first electric folding bike from the video.""",
-    #output_file='./output_files/youtube_video.md',
-    agent=video_researcher,
-)
-
-reddit_search_task = Task(
-    description='Search Reddit forums to get consumer feedback on a product.',
-    expected_output="A helpful response addressing the user's request",
-    #output_file='./output_files/reddit.md',
-    agent=reddit_researcher,
-)
-
-market_research_task = Task(
-    description="""Research the market for {product}. Include:
-    1. Key market trends
-    2. Product demand
-    3. Market size
-    4. Consumer preferences and willingness to pay
-    5. Major competitors""",
-    expected_output="A well-structured, comprehensive report in Markdown format.",
-    context=[video_research_task, reddit_search_task],
-    #output_file='output_files/market_research.md',
-    agent=market_researcher
 )
 
 writing_task = Task(
@@ -372,6 +458,24 @@ writing_task = Task(
     agent=writer
 )
 
+# -----------------------------
+# content reviewer
+# -----------------------------
+content_reviewer = Agent(
+    role="Content Reviewer and Editor",
+    goal="Ensure content is accurate, well-structured, and with clear takeaways.",
+    backstory="""You are a meticulous editor with an MBA and years of experience
+    at consultancy firms, critiquing market research and competive analysis reports.
+    You have an eye for clarity and coherence. You excel at improving content,
+    while maintaining the original author's voice and ensuring consistent quality
+    across multiple sections of the report.""",
+    tools=[youtube_rag_tool, wiki_tool, file_writer_tool],
+    allow_delegation=True,
+    max_iter=5,
+    verbose=True,
+    llm=llm
+)
+
 review_task = Task(
     description="""Review and improve the competitive analysis report.
 
@@ -391,32 +495,17 @@ review_task = Task(
     agent=content_reviewer
 )
 
-check_topic_task = Task(
-    description="""Analyze the user input: {product} and {new_color}. 
-    Determine if {product} is about {specific_topic} AND {new_color} is a valid color.
-    Return 'ON_TOPIC' or 'OFF_TOPIC'.""",
-    expected_output='A string: "ON_TOPIC" or "OFF_TOPIC"',
-    agent=topic_guard_agent
-)
-
-# Create a multimodal agent which comes pre-configured with AddImageTool to process images
+# -----------------------------
+# Multimodal agent for image analysis and generation
+# ----------------------------
+# Combine image_analyst and image_artist as one agent
 image_analyst = Agent(
-    role="Visual Quality Inspector",
-    goal="Analyze product images and provide accurate and detailed descriptions",
-    backstory="Senior quality control expert with expertise in visual inspection of consumer products.",
+    role='Visual Data Specialist',
+    goal='Analyze image and provide detailed description or make precise edits.',
+    backstory="""An expert in computer vision, capable of interpreting complex
+    visual data. You excel at creating descriptive prompts for DALL-E 3.""",
     multimodal=True,
-    llm=vision_llm,
-    verbose=True
-)
-
-image_artist = Agent(
-    role='Senior Industrial Designer',
-    goal='Create accurate, detailed visual representations of a specific topic',
-    backstory="""You are a veteran product industrial designer with a knack for
-    creating innovative design solutions that balance visuals, user-interaction,
-    performance, manufacturing, and cost. You specialize in creating detailed
-    prompts for DALL-E 3.""",
-    tools=[dalle_tool],
+    tools=[encode_image_base64, dalle_tool],
     allow_delegation=False,
     max_iter=10,
     llm=vision_llm,
@@ -425,52 +514,93 @@ image_artist = Agent(
 
 # Create a task for image analysis
 describe_image_task = Task(
-    description="""Analyze the product image at {image_url}. Describe the image in detail.""",
+    description="""Use the 'Base64EncodingTool' to encode the product image at
+    {image_url} to a base64 string that you can view.
+    Then analyze the image and describe it in detail.""",
     expected_output="An accurate and detailed description of the product image",
-    #output_file='./output_files/image_description.md',
+    #output_file='output_files/image_description.md',
     agent=image_analyst
 )
 
 # Create a task for image generation
 generate_image_task = Task(
-    description="""Create a photorealistic image of a variant of the product image
-    at {image_url}. Change the color of the product **frame** to {new_color},
-    while maintaining the other attributes of the product. You must not modify
-    any other part of the image.""",
-    expected_output="""An image URL of the product variant with the **frame** in
-    {new_color}.""",
+    description="""Based on the analysis details of the original product image,
+    use the 'DallEImageTool' to create a photorealistic image of a product variant
+    according to the following criteria:
+
+    Only change the color of the product **frame** to {new_color}, maintaining
+    all other aspects exactly as they are in the original image.
+    """,
+    expected_output="""An image URL of a product variant with the frame in {new_color}.""",
     context=[describe_image_task],
-    agent=image_artist,
+    agent=image_analyst,
     result_as_answer=True
+)
+
+# -----------------------------
+# Input guardrail
+# -----------------------------
+topic_guard_agent = Agent(
+    role='Topic Guardrail Agent',
+    goal='Ensure all user questions are strictly related to {specific_topic}.',
+    backstory="""You are a security expert specialized in ensuring that conversations
+    stay on-topic and tasks are within scope. If a question is off-topic, you
+    terminate the conversation and stop the crew.""",
+    tools=[yolo_detector_tool],
+    allow_delegation=False,
+    verbose=True,
+    llm=llm
+)
+
+check_topic_task = Task(
+    description="""Analyze the user inputs: {product} and {new_color}.
+    Determine if {product} is about {specific_topic} AND {new_color} is a valid color.
+    Return 'ON_TOPIC' or 'OFF_TOPIC'.""",
+    expected_output="A string: 'ON_TOPIC' or 'OFF_TOPIC'",
+    agent=topic_guard_agent
+)
+
+check_input_image_task = Task(
+    description="""Use the 'YoloDetectorTool' to determine if the image at {image_url}
+    is a bicycle. Return 'BICYCLE' or 'NOT_BICYCLE'.""",
+    expected_output="A string: 'BICYCLE' or 'NOT_BICYCLE'",
+    agent=topic_guard_agent
+)
+
+aggregate_checks_task = Task(
+    description="Concatenate the findings from the check_topic and check_input_image tasks.",
+    context=[check_topic_task, check_input_image_task],
+    expected_output="""A list of two strings: 'ON_TOPIC' or 'OFF_TOPIC', and
+    'BICYCLE' or 'NOT_BICYCLE'""",
+    agent=topic_guard_agent
 )
 
 # Define the crews
 guard_crew = Crew(
     agents=[topic_guard_agent],
-    tasks=[check_topic_task],
+    tasks=[check_topic_task, check_input_image_task, aggregate_checks_task],
     process=Process.sequential
 )
 
 # Marketing crew
 crew_1 = Crew(
     agents=[video_researcher, reddit_researcher, market_researcher, content_reviewer],
-    tasks=[video_research_task, reddit_search_task, market_research_task, writing_task, review_task],
+    tasks=[video_research_task, reddit_search_task, visualize_sentiments_task, market_research_task, writing_task, review_task],
     process=Process.hierarchical, # Process.sequential | Process.hierarchical
     manager_llm=llm, # manager_llm=llm | manager_agent=manager
     planning=True,
     memory=True, # enable memory to keep context
-    verbose=False,
-    #output_log_file="output_files/crew_mkt_log"
+    verbose=True,
+    output_log_file="output_files/crew_mkt_log"
 )
 
 # A/B testing crew
 crew_2 = Crew(
-    agents=[image_analyst, image_artist],
+    agents=[image_analyst],
     tasks=[describe_image_task, generate_image_task],
     process=Process.sequential,
-    planning=False,
-    verbose=False,
-    #output_log_file="output_files/crew_ab_log"
+    verbose=False, # True will output long image base64 encoded string in the log
+    output_log_file="output_files/crew_ab_log"
 )
 
 # --- end of agentic system code ---
@@ -527,10 +657,16 @@ async def main():
 
     for i, result in enumerate(results, 1):
         st.write(f"Crew {i} Result:", result.raw)
+        if i==1:
+            # Display sentiment word clouds
+            filesList = glob.glob(folderPath + "/*.png")
+            for file in filesList:
+                caption = 'Positive feedback word cloud' if 'positive' in file else 'Complaints word cloud'
+                st.image(file, caption=caption, width=200)
+
         if i == 2:
-            #st.write(f"Generated Image URL: {result}")
+            st.divider()
             download_image(result, save_path=f"output_files/generated_variant_{new_color}.jpg")
-            # Display generated image from URL
             st.image(f"output_files/generated_variant_{new_color}.jpg", caption='Product variant image', width=200)
 
 
@@ -559,17 +695,33 @@ if st.button("Run Task"):
         # Proceed with crew execution
         with st.spinner("Analyzing and executing task..."):
             # Run guardrail
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(run_crew_async(guard_crew, inputs=validated_data.dict()))
+            result = guard_crew.kickoff(inputs=validated_data.dict())
+            #loop = asyncio.new_event_loop()
+            #asyncio.set_event_loop(loop)
+            #result = loop.run_until_complete(run_crew_async(guard_crew, inputs=validated_data.dict()))
 
             # Check for termination condition
             if "OFF_TOPIC" in result.raw:
                 st.warning(f"Session terminated: please check your inputs.")
             else:
                 # Proceed with main agents
-                #await main() # async cannot be outside async function
-                asyncio.run(main())
+                if "NOT_BICYCLE" in result.raw:
+                    st.warning(f"Please select a bicycle image. Skipping variant generation for now.")
+                    # Run crew_1 only
+                    result = crew_1.kickoff(inputs=validated_data.dict())
+                    #loop = asyncio.new_event_loop()
+                    #asyncio.set_event_loop(loop)
+                    #result = loop.run_until_complete(run_crew_async(crew_1, inputs=validated_data.dict()))
+                    if result:
+                        # Display sentiment word clouds
+                        filesList = glob.glob(folderPath + "/*.png")
+                        for file in filesList:
+                            st.image(file, width=200)
+
+                else:
+                # Run both crews asynchronously
+                    #await main() # async cannot be outside async function
+                    asyncio.run(main())
 
     except ValidationError as e:
         st.warning(f"Validation Error: {e}")

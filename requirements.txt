@@ -7,6 +7,7 @@ gdown==5.2.1
 langchain==0.3.27
 langchain-community==0.3.31
 langchain-core==0.3.83
+langchain-google-genai==2.1.12
 langchain-openai==0.3.23
 langchain-pinecone==0.2.13
 langchain-tavily==0.2.17
@@ -19,6 +20,9 @@ requests-toolbelt==1.0.0
 sentence-transformers==5.2.2
 streamlit==1.53.1
 types-requests==2.32.4.20260107
+ultralytics==8.4.11
+ultralytics-thop==2.0.18
 wikipedia==1.4.0
+wordcloud==1.9.6
 # https://pypi.org/project/gunicorn/
 gunicorn==21.2.0
