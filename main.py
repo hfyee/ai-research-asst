@@ -428,7 +428,7 @@ market_research_task = Task(
 # -----------------------------
 # writer
 # -----------------------------
-writer = Agent(
+report_writer = Agent(
     role='Writer',
     goal="""Create a clear competitive analysis report for the assigned product that
     is actionable and provides valuable insights to the business owner.""",
@@ -462,7 +462,7 @@ writing_task = Task(
     expected_output="A well-structured, comprehensive report in Markdown format.",
     context=[video_research_task, market_research_task],
     #output_file='./output_files/draft_report.md',
-    agent=writer
+    agent=report_writer
 )
 
 # -----------------------------
@@ -591,7 +591,7 @@ guard_crew = Crew(
 
 # Marketing crew
 crew_1 = Crew(
-    agents=[video_researcher, reddit_researcher, market_researcher, content_reviewer],
+    agents=[video_researcher, reddit_researcher, market_researcher, report_writer, content_reviewer],
     tasks=[video_research_task, reddit_search_task, visualize_sentiments_task, market_research_task, writing_task, review_task],
     process=Process.hierarchical, # Process.sequential | Process.hierarchical
     manager_llm=llm, # manager_llm=llm | manager_agent=manager
