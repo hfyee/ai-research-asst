@@ -56,9 +56,19 @@ import io
 from wordcloud import WordCloud
 
 # --- PAGE CONFIG ---
+#st.set_page_config(page_title="AI-powered Market Research Assistant", page_icon=":bike:", layout="wide")
+#st.title(":bike: AI-powered Market Research Assistant")
+icon_img = Image.open("bicycle_icon.png")
+#st.image(icon_img, width=50)
+#st.title("AI-powered Market Research Assistant")
+st.set_page_config(layout="wide")
+col1, col2 = st.columns([1, 20])
+with col1:
+    st.image(icon_img, width=50)
+with col2:
+    #st.title("AI-powered Market Research Assistant")
+    st.markdown("<h2 style='margin-top: 0px;'>AI-powered Market Research Assistant</h2>", unsafe_allow_html=True)
 
-st.set_page_config(page_title="AI-powered Market Research Assistant", page_icon="🦋", layout="wide")
-st.title("🦋 AI-powered Market Research Assistant")
 st.markdown("Hi, enter a folding bike product name, and let me help you with the market research.")
 
 # Access secrets
