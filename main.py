@@ -16,6 +16,7 @@ from crewai_tools.tools.rag import RagToolConfig, VectorDbConfig, ProviderSpec
 from crewai_tools import FileWriterTool
 from crewai_tools import YoutubeVideoSearchTool
 from crewai_tools import CodeInterpreterTool
+from crewai.tasks.task_output import TaskOutput
 
 # Import langchain packages
 from langchain_openai import ChatOpenAI
@@ -341,6 +342,17 @@ class LowResBase64EncodingTool(BaseTool):
 
 encode_image_base64 = LowResBase64EncodingTool()
 
+# Callback function to print intermediate outputs
+def show_word_clouds(output: TaskOutput):
+    """Callback function to print task output immediately upon completion."""
+    print(f"\n### Sentiment analysis completed ###")
+    # Display word clouds
+    filesList = glob.glob(folderPath + "/*.png")
+    for file in filesList:
+        caption = 'Positive feedback word cloud' if 'positive' in file else 'Complaints word cloud'
+        st.image(file, caption=caption, width=200)
+
+
 # Define agents and tasks
 
 # -----------------------------
@@ -387,14 +399,15 @@ reddit_search_task = Task(
 visualize_sentiments_task = Task(
     description="""Visualize sentiment counts provided by reddit_research task.
     Use the 'WordCloudGenerationTool' to generate word clouds for positive feedback
-    and complaints. Specify 'Reds' for the colormap to represent negative feedback.
-    Specify 'PuBuGn' for the colormap to represent positive feedback.
-    The word clouds should be saved in the 'output_files' directory.
-    """,
+    and complaints. Focus on the adjectives in the feedback. Specify 'Reds' for 
+    the colormap to represent negative feedback. Specify 'PuBuGn' for the colormap 
+    to represent positive feedback. The word clouds should be saved in the 
+    'output_files' directory.""",
     tools=[word_cloud_tool],
     context=[reddit_search_task],
     expected_output="One word cloud for postive feedback, another word cloud for complaints.",
     agent=reddit_researcher,
+    callback=show_word_clouds
 )
 
 # -----------------------------
@@ -405,46 +418,32 @@ market_researcher = Agent(
     goal="Conduct comprehensive market research about the assigned product.",
     backstory="""You are an experienced market analyst with expertise in identifying 
     market trends and opportunities as well as understanding consumer behavior.""",
-    tools=[rag_tool, web_search_tool, youtube_tool],
+    tools=[web_search_tool, rag_tool, youtube_tool],
     allow_delegation=True,
-    max_iter=5,
+    max_iter=15,
     llm=llm,
     verbose=True
-)
-
-market_research_task = Task(
-    description="""Research the market for {product}. Include:
-    1. Key market trends
-    2. Product demand
-    3. Market size
-    4. Consumer preferences and willingness to pay
-    5. Major competitors""",
-    expected_output="A well-structured, comprehensive report in Markdown format.",
-    context=[reddit_search_task],
-    #output_file='output_files/market_research.md',
-    agent=market_researcher
 )
 
 # -----------------------------
 # writer
 # -----------------------------
-report_writer = Agent(
-    role='Writer',
-    goal="""Create a clear competitive analysis report for the assigned product that
-    is actionable and provides valuable insights to the business owner.""",
-    backstory="""You are a seasoned product marketing manager who understands the
-    intersection of product strategy, customer insights and go-to-market execution.
-    You have a gift for combining market research and competitive analysis to find
-    a competitive advantage for consumer product companies. You are able to explain
-    complex concepts in accessible language.""",
-    tools=[rag_tool, file_writer_tool],
+writer = Agent(
+    role='Report Writer',
+    goal="""Create comprehensive, well-structured reports combining the provided
+    research and news analysis. Do not include any information that is not explicitly
+    provided.""",
+    backstory="""You are a professional report writer with experience in business
+    intelligence and market analysis. You have an MBA from a top school. You excel
+    at synthesizing information into clear and actionable insights.""",
+    tools=[file_writer_tool],
     allow_delegation=True,
-    max_iter=5,
-    llm=llm,
-    verbose=True
+    max_iter=15,
+    verbose=True,
+    llm=llm
 )
 
-writing_task = Task(
+report_task = Task(
     description="""Write a competitive analysis report on consumer product {product}.
 
     Target audience: Product Marketing Manager for {product} company
@@ -454,52 +453,37 @@ writing_task = Task(
     - Include SWOT analysis.
     - Highlight any regulatory compliance requirements in Singapore.
     - Outline the common consumer complaints about {product}.
-    - Provide concrete recommendations for {product} company's R&D strategy.
-    - Be approximately 800-1000 words in length.
+    - Provide concrete recommendations for {product} company's R&D strategy..
     - Include relevant image and video links.
 
+    Collaborate with your teammates to ensure the report is well-researched,
+    comprehensive and accurate.
+
+    Use the 'FileWriterTool' to write the final content into a markdown file inside
+    the directory 'output_files'.
     """,
-    expected_output="A well-structured, comprehensive report in Markdown format.",
-    context=[video_research_task, market_research_task],
-    #output_file='./output_files/draft_report.md',
-    agent=report_writer
+    expected_output="""A well-structured and comprehensive 1000-word report in
+    Markdown format.""",
+    #output_file='output_files/draft_report.md',
+    agent=writer # writer leads, but can delegate research to researcher
 )
 
 # -----------------------------
-# content reviewer
+# editor
 # -----------------------------
-content_reviewer = Agent(
-    role="Content Reviewer and Editor",
-    goal="Ensure content is accurate, well-structured, and with clear takeaways.",
-    backstory="""You are a meticulous editor with an MBA and years of experience
-    at consultancy firms, critiquing market research and competive analysis reports.
-    You have an eye for clarity and coherence. You excel at improving content,
-    while maintaining the original author's voice and ensuring consistent quality
-    across multiple sections of the report.""",
-    tools=[youtube_rag_tool, wiki_tool, file_writer_tool],
+editor = Agent(
+    role="Content Editor",
+    goal="""Ensure content quality and consistency. This includes verifying the 
+    validity of any image or YouTube video links.""",
+    backstory="""You are an experienced editor with an eye for detail. You excel
+    at critiquing market research and competive analysis reports, ensuring content
+    meets high standards for clarity and accuracy.""",
+    #tools=[youtube_rag_tool, wiki_tool, file_writer_tool],
+    tools=[wiki_tool, rag_tool],
     allow_delegation=True,
-    max_iter=5,
+    max_iter=15,
     verbose=True,
     llm=llm
-)
-
-review_task = Task(
-    description="""Review and improve the competitive analysis report.
-
-    Target audience: Product Marketing Manager for {product} company
-
-    Your review should:
-    1. Check for consistency in tone and style
-    2. Improve clarity and readability
-    3. Ensure content is comprehensive and accurate
-    4. Use the 'YoutubeVideoSearchTool' to verify the validity of any image or YouTube video links
-    5. Check for bias and suggest improvements
-
-    """,
-    expected_output="""'An improved, polished version of the report that
-    maintains the original structure but enhances clarity, accuracy and consistency.""",
-    context=[writing_task],
-    agent=content_reviewer
 )
 
 # -----------------------------
@@ -591,13 +575,13 @@ guard_crew = Crew(
 
 # Marketing crew
 crew_1 = Crew(
-    agents=[video_researcher, reddit_researcher, market_researcher, report_writer, content_reviewer],
-    tasks=[video_research_task, reddit_search_task, visualize_sentiments_task, market_research_task, writing_task, review_task],
-    process=Process.hierarchical, # Process.sequential | Process.hierarchical
-    manager_llm=llm, # manager_llm=llm | manager_agent=manager
+    agents=[reddit_researcher, market_researcher, writer, editor],
+    tasks=[reddit_search_task, visualize_sentiments_task, report_task],
+    process=Process.sequential, # Process.sequential | Process.hierarchical
+    #manager_llm=llm, # manager_llm=llm | manager_agent=manager
     planning=True,
     memory=True, # enable memory to keep context
-    verbose=True,
+    verbose=False, # True to see collaboration between agents
     output_log_file="output_files/crew_mkt_log"
 )
 
@@ -666,10 +650,10 @@ async def main():
         if i==1:
             st.write(f"Crew {i} Result:", result.raw)
             # Display sentiment word clouds
-            filesList = glob.glob(folderPath + "/*.png")
-            for file in filesList:
-                caption = 'Positive feedback word cloud' if 'positive' in file else 'Complaints word cloud'
-                st.image(file, caption=caption, width=200)
+            #filesList = glob.glob(folderPath + "/*.png")
+            #for file in filesList:
+            #    caption = 'Positive feedback word cloud' if 'positive' in file else 'Complaints word cloud'
+            #    st.image(file, caption=caption, width=200)
 
         if i == 2:
             st.divider()
