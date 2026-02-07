@@ -60,7 +60,7 @@ from wordcloud import WordCloud
 #st.title(":bike: AI-powered Market Research Assistant")
 icon_img = Image.open("bicycle_icon.png")
 st.set_page_config(layout="wide")
-col1, col2 = st.columns([1, 10])
+col1, col2 = st.columns([1, 20])
 with col1:
     st.image(icon_img, width=50)
 with col2:
