@@ -39,7 +39,7 @@ from langchain_core.tools import tool
 # Import pydantic packages
 from pydantic import BaseModel, Field, field_validator, ValidationError
 from pathlib import Path
-from typing import Type, Optional
+from typing import Type, Optional, Dict, List
 import requests
 
 # Import Composio packages
@@ -80,7 +80,7 @@ gemini_api_key = st.secrets["GEMINI_API_KEY"]
 with st.sidebar:
     st.header("⚙️ User inputs")
     product = st.text_input("Product name:", placeholder="e.g., Tern folding bike")
-    youtube_video_url = st.text_input("Video link for analysis:", value="https://www.youtube.com/watch?v=lhDoB9rGbGQ")
+    #video_url = st.text_input("Video link for analysis:", value="https://www.youtube.com/watch?v=lhDoB9rGbGQ")
  
     folderPath = os.path.abspath('input_files')
     filesList = glob.glob(folderPath + "/*")
@@ -247,7 +247,7 @@ web_search_tool = TavilySearchTool(
 wiki_tool = WikipediaTool() # for quick, general topical overview, as a starting point for research
 dalle_tool = DallEImageTool()
 youtube_tool = YouTubeSearchTool() # web scraping on YouTube search results page
-#youtube_rag_tool = YoutubeVideoSearchTool(youtube_video_url='https://www.youtube.com/watch?v=lhDoB9rGbGQ', summarize=True)
+#youtube_rag_tool = YoutubeVideoSearchTool(video_url='https://www.youtube.com/watch?v=lhDoB9rGbGQ', summarize=True)
 youtube_rag_tool = YoutubeVideoSearchTool(summarize=True)
 file_writer_tool = FileWriterTool(directory='output_files')
 code_interpreter = CodeInterpreterTool()
@@ -352,6 +352,15 @@ def show_word_clouds(output: TaskOutput):
         caption = 'Positive feedback word cloud' if 'positive' in file else 'Complaints word cloud'
         st.image(file, caption=caption, width=200)
 
+# Define Pydantic model for structured task output
+class MarketAnalysis(BaseModel):
+    title: str = Field(description="Title of the market research")
+    executive_summary: str = Field(description="Overview of the main points")
+    key_trends: List[str] = Field(description="List of identified market trends")
+    market_size: str = Field(description="Estimated market size")
+    competitors: List[str] = Field(description="Major competitors in the space")
+    competitor_analysis: Optional[Dict[str, Dict[str, str]]] = Field(default_factory=dict, description="Analysis of competitor products")
+    conclusion: str = Field(description="Conclusion or summary of the research")
 
 # Define agents and tasks
 
@@ -368,11 +377,11 @@ video_researcher = Agent(
 
 video_research_task = Task(
     description="""Search for information about the R&D of Brompton's first electric
-    folding bike in the YouTube video at {youtube_video_url}, and provide a
+    folding bike in the YouTube video at {video_url}, and provide a
     comprehensive summary of the main points.""",
     expected_output="""A detailed summary of the R&D strategy behind Brompton's
     first electric folding bike from the video.""",
-    #output_file='./output_files/youtube_video.md',
+    #output_file='./output_files/video.md',
     agent=video_researcher,
 )
 
@@ -407,7 +416,7 @@ visualize_sentiments_task = Task(
     context=[reddit_search_task],
     expected_output="One word cloud for postive feedback, another word cloud for complaints.",
     agent=reddit_researcher,
-    callback=show_word_clouds
+    #callback=show_word_clouds
 )
 
 # -----------------------------
@@ -443,28 +452,36 @@ writer = Agent(
     llm=llm
 )
 
+# Use the 'FileWriterTool' to write the final content into a Markdown file 
+# inside the directory 'output_files'.
 report_task = Task(
-    description="""Write a competitive analysis report on consumer product {product}.
+    description="""Write a well-researched, market analysis report on consumer 
+    product {product}.
 
     Target audience: Product Marketing Manager for {product} company
 
-    Your content should:
-    - Be based on the current top 2 competitors.
-    - Include SWOT analysis.
-    - Highlight any regulatory compliance requirements in Singapore.
-    - Outline the common consumer complaints about {product}.
-    - Provide concrete recommendations for {product} company's R&D strategy..
-    - Include relevant image and video links.
+    Include:
+        1. Key market trends
+        2. Market size
+        3. Any regulatory compliance requirements in Singapore
+        4. Major competitors, focusing on the top 2 competitors/products
+        5. Competitor analysis including SWOT analysis
+        6. Consumer sentiment analysis
+        7. Recommendations for {product} company's R&D strategy.
+        8. Relevant supporting image and video links
 
     Collaborate with your teammates to ensure the report is well-researched,
-    comprehensive and accurate.
+    comprehensive and accurate. 
 
-    Use the 'FileWriterTool' to write the final content into a markdown file inside
-    the directory 'output_files'.
+    The report should be approximately 1000-1200 words in length.
+    Video links should be checked by video_validator agent. 
+    The report content should be reviewed by editor agent.
+
     """,
-    expected_output="""A well-structured and comprehensive 1000-word report in
-    Markdown format.""",
-    #output_file='output_files/draft_report.md',
+    output_pydantic=MarketAnalysis,
+    expected_output="""A well-structured and comprehensive report adhering to the 
+    MarketAnalysis Pydantic model, and written in Markdown format.""",
+    #output_file='output_files/report.md',
     agent=writer # writer leads, but can delegate research to researcher
 )
 
@@ -473,8 +490,8 @@ report_task = Task(
 # -----------------------------
 editor = Agent(
     role="Content Editor",
-    goal="""Ensure content quality and consistency. This includes verifying the 
-    validity of any image or YouTube video links.""",
+    goal="""Ensure content quality and consistency. Also check if embedded video 
+    links are accessible and not private/deleted.""",
     backstory="""You are an experienced editor with an eye for detail. You excel
     at critiquing market research and competive analysis reports, ensuring content
     meets high standards for clarity and accuracy.""",
@@ -577,8 +594,8 @@ guard_crew = Crew(
 crew_1 = Crew(
     agents=[reddit_researcher, market_researcher, writer, editor],
     tasks=[reddit_search_task, visualize_sentiments_task, report_task],
-    process=Process.sequential, # Process.sequential | Process.hierarchical
-    #manager_llm=llm, # manager_llm=llm | manager_agent=manager
+    process=Process.hierarchical, # Process.sequential | Process.hierarchical
+    manager_llm=llm, # manager_llm=llm | manager_agent=manager
     planning=True,
     memory=True, # enable memory to keep context
     verbose=False, # True to see collaboration between agents
@@ -599,12 +616,13 @@ crew_2 = Crew(
 # Validate inputs before passing to crew
 class InputValidator(BaseModel):
     product: str
-    youtube_video_url: str
+    #video_url: str
     image_url: str
     new_color: str
     specific_topic: str
 
-    @field_validator('product', 'youtube_video_url', 'image_url', 'new_color', 'specific_topic')
+    #@field_validator('product', 'video_url', 'image_url', 'new_color', 'specific_topic')
+    @field_validator('product', 'image_url', 'new_color', 'specific_topic')
     @classmethod
     def check_not_empty(cls, v) -> str:
         if v is None or len(v.strip()) == 0:
@@ -618,9 +636,6 @@ class InputValidator(BaseModel):
         if not Path(v).exists():
             raise ValueError(f"File not found: {v}")
         return v
-
-async def run_crew_async(crew: Crew, inputs: dict):
-    return crew.kickoff(inputs=inputs)
 
 # Define function to download image from DALL-E tool
 def download_image(image_url, save_path="./generated_image.png"):
@@ -636,6 +651,9 @@ def download_image(image_url, save_path="./generated_image.png"):
     except requests.exceptions.RequestException as e:
         print(f"An error occurred during download: {e}")
 
+async def run_crew_async(crew: Crew, inputs: dict):
+    return crew.kickoff(inputs=inputs)
+
 async def main():
     results = await asyncio.gather(
         crew_1.kickoff_async(inputs=validated_data.dict()),
@@ -650,10 +668,10 @@ async def main():
         if i==1:
             st.write(f"Crew {i} Result:", result.raw)
             # Display sentiment word clouds
-            #filesList = glob.glob(folderPath + "/*.png")
-            #for file in filesList:
-            #    caption = 'Positive feedback word cloud' if 'positive' in file else 'Complaints word cloud'
-            #    st.image(file, caption=caption, width=200)
+            filesList = glob.glob(folderPath + "/*.png")
+            for file in filesList:
+                caption = 'Positive feedback word cloud' if 'positive' in file else 'Complaints word cloud'
+                st.image(file, caption=caption, width=200)
 
         if i == 2:
             st.divider()
@@ -664,20 +682,20 @@ async def main():
 
 # --- Start of run code ---
 
-# Remove all existing files in output_files folder
-folderPath = "output_files"
-if not os.path.exists(folderPath):
-    os.makedirs(folderPath)
-else:
-    # Get list of all the files in the folder
-    filesList = glob.glob(folderPath + "/*")
-    for file in filesList:
-        os.remove(file)
-
 if st.button("Run Task"):
+    # Remove all existing files in output_files folder
+    folderPath = "output_files"
+    if not os.path.exists(folderPath):
+        os.makedirs(folderPath)
+    else:
+        # Get list of all the files in the folder
+        filesList = glob.glob(folderPath + "/*")
+        for file in filesList:
+            os.remove(file)
+            
     # Validate inputs before passing to crew
     raw_data = {"product": product,
-                "youtube_video_url": youtube_video_url,
+                #"video_url": video_url,
                 "image_url": image_url,
                 "new_color": new_color,
                 "specific_topic": "Bicycles" # folding bikes, electric bikes
