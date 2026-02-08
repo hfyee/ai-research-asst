@@ -416,7 +416,7 @@ visualize_sentiments_task = Task(
     context=[reddit_search_task],
     expected_output="One word cloud for postive feedback, another word cloud for complaints.",
     agent=reddit_researcher,
-    #callback=show_word_clouds
+    callback=show_word_clouds
 )
 
 # -----------------------------
@@ -594,8 +594,8 @@ guard_crew = Crew(
 crew_1 = Crew(
     agents=[reddit_researcher, market_researcher, writer, editor],
     tasks=[reddit_search_task, visualize_sentiments_task, report_task],
-    process=Process.hierarchical, # Process.sequential | Process.hierarchical
-    manager_llm=llm, # manager_llm=llm | manager_agent=manager
+    process=Process.sequential, # Process.sequential | Process.hierarchical
+    #manager_llm=llm, # manager_llm=llm | manager_agent=manager
     planning=True,
     memory=True, # enable memory to keep context
     verbose=False, # True to see collaboration between agents
@@ -676,8 +676,11 @@ async def main():
         if i == 2:
             st.divider()
             download_image(result, save_path=f"output_files/generated_variant_{new_color}.jpg")
-            st.write(f"Crew {i} Result:")
-            st.image(f"output_files/generated_variant_{new_color}.jpg", caption='Product variant image', width=200)
+            if os.path.exists(f"output_files/generated_variant_{new_color}.jpg"):
+                st.write(f"Crew {i} Result:")
+                st.image(f"output_files/generated_variant_{new_color}.jpg", caption='Product variant image', width=200)
+            else:
+                st.warning("Image download failed.")
 
 
 # --- Start of run code ---
@@ -692,7 +695,7 @@ if st.button("Run Task"):
         filesList = glob.glob(folderPath + "/*")
         for file in filesList:
             os.remove(file)
-            
+
     # Validate inputs before passing to crew
     raw_data = {"product": product,
                 #"video_url": video_url,
@@ -705,10 +708,10 @@ if st.button("Run Task"):
         # Proceed with crew execution
         with st.spinner("Analyzing and executing task..."):
             # Run guardrail
-            result = guard_crew.kickoff(inputs=validated_data.dict())
-            #loop = asyncio.new_event_loop()
-            #asyncio.set_event_loop(loop)
-            #result = loop.run_until_complete(run_crew_async(guard_crew, inputs=validated_data.dict()))
+            #result = guard_crew.kickoff(inputs=validated_data.dict())
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result = loop.run_until_complete(run_crew_async(guard_crew, inputs=validated_data.dict()))
 
             # Check for termination condition
             if "OFF_TOPIC" in result.raw:
@@ -718,10 +721,10 @@ if st.button("Run Task"):
                 if "NOT_BICYCLE" in result.raw:
                     st.warning(f"Please select a bicycle image. Skipping variant generation for now.")
                     # Run crew_1 only
-                    result = crew_1.kickoff(inputs=validated_data.dict())
-                    #loop = asyncio.new_event_loop()
-                    #asyncio.set_event_loop(loop)
-                    #result = loop.run_until_complete(run_crew_async(crew_1, inputs=validated_data.dict()))
+                    #result = crew_1.kickoff(inputs=validated_data.dict())
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    result = loop.run_until_complete(run_crew_async(crew_1, inputs=validated_data.dict()))
                     if result:
                         # Display sentiment word clouds
                         filesList = glob.glob(folderPath + "/*.png")
