@@ -56,19 +56,6 @@ import io
 # Import package for word cloud generation
 from wordcloud import WordCloud
 
-# --- PAGE CONFIG ---
-#st.set_page_config(page_title="AI-powered Market Research Assistant", page_icon=":bike:", layout="wide")
-#st.title(":bike: AI-powered Market Research Assistant")
-icon_img = Image.open("bicycle_icon.png")
-st.set_page_config(layout="wide")
-col1, col2 = st.columns([1, 20])
-with col1:
-    st.image(icon_img, width=50)
-with col2:
-    #st.title("AI-powered Market Research Assistant")
-    st.markdown("<h2 style='margin-top: 0px;'>AI-powered Market Research Assistant</h2>", unsafe_allow_html=True)
-st.markdown("Hi, enter a folding bike product name, and let me help you with the market research.")
-
 # Access secrets
 openai_api_key = st.secrets["OPENAI_API_KEY"]
 tavily_api_key = st.secrets["TAVILY_API_KEY"]
@@ -76,27 +63,7 @@ composio_api_key = st.secrets["COMPOSIO_API_KEY"]
 composio_user_id = st.secrets["COMPOSIO_USER_ID"]
 gemini_api_key = st.secrets["GEMINI_API_KEY"]
 
-# --- SIDEBAR: CONFIGURATION ---
-with st.sidebar:
-    st.header("⚙️ User inputs")
-    product = st.text_input("Product name:", placeholder="e.g., Tern folding bike")
-    #video_url = st.text_input("Video link for analysis:", value="https://www.youtube.com/watch?v=lhDoB9rGbGQ")
- 
-    folderPath = os.path.abspath('input_files')
-    filesList = glob.glob(folderPath + "/*")
-    basenames = [os.path.basename(f) for f in filesList]
-    selected_image = st.selectbox("Select product image for color variation:", 
-                             options=basenames, index=0)
-    image_url = os.path.join(folderPath, selected_image)
-    if image_url:
-        st.sidebar.image(image_url, caption='Product original image', width=200)
-    new_color = st.text_input("New color for product variant:", placeholder="e.g., white, blue, gold, red, green")
-    
-    st.divider()
-    st.info("Version v0.2.0")
-
 # Check for API keys in environment variables
-# Check for keys
 if not openai_api_key or not tavily_api_key or not composio_api_key or not composio_user_id:
     st.warning("Please enter your API keys in the sidebar to proceed.")
     st.stop()
@@ -683,58 +650,94 @@ async def main():
                 st.warning("Image download failed.")
 
 
-# --- Start of run code ---
+# --- PAGE CONFIG ---
+#st.set_page_config(page_title="AI-powered Market Research Assistant", page_icon=":bike:", layout="wide")
+#st.title(":bike: AI-powered Market Research Assistant")
+icon_img = Image.open("bicycle_icon.png")
+st.set_page_config(layout="wide")
+col1, col2 = st.columns([1, 10])
+with col1:
+    st.image(icon_img, width=50)
+with col2:
+    #st.title("AI-powered Market Research Assistant")
+    st.markdown("<h2 style='margin-top: 0px;'>AI-powered Market Research Assistant</h2>", unsafe_allow_html=True)
+st.markdown("Hi, enter a folding bike product/brand, and let me help you with the market research.")
+
+
+# --- SIDEBAR: CONFIGURATION ---
+with st.sidebar:
+    st.header("⚙️ User inputs")
+    product = st.text_input("Product:", placeholder="e.g., Tern folding bike")
+    #video_url = st.text_input("Video link for analysis:", value="https://www.youtube.com/watch?v=lhDoB9rGbGQ")
+ 
+    folderPath = os.path.abspath('input_files')
+    filesList = glob.glob(folderPath + "/*")
+    basenames = [os.path.basename(f) for f in filesList]
+    selected_image = st.selectbox("Select product image for color variation:", 
+                             options=basenames, index=0)
+    image_url = os.path.join(folderPath, selected_image)
+    if image_url:
+        st.sidebar.image(image_url, caption='Product original image', width=200)
+    new_color = st.text_input("New color for product variant:", placeholder="e.g., white, blue, gold, red, green")
+    
+    st.divider()
+    st.info("Version v0.2.0")
 
 if st.button("Run Task"):
-    # Remove all existing files in output_files folder
-    folderPath = "output_files"
-    if not os.path.exists(folderPath):
-        os.makedirs(folderPath)
+    if not product:
+        st.error("Please enter a product name.")
+    elif not new_color:
+        st.error("Please enter a new color.")
     else:
-        # Get list of all the files in the folder
-        filesList = glob.glob(folderPath + "/*")
-        for file in filesList:
-            os.remove(file)
+        # Remove all existing files in output_files folder
+        folderPath = "output_files"
+        if not os.path.exists(folderPath):
+            os.makedirs(folderPath)
+        else:
+            # Get list of all the files in the folder
+            filesList = glob.glob(folderPath + "/*")
+            for file in filesList:
+                os.remove(file)
 
-    # Validate inputs before passing to crew
-    raw_data = {"product": product,
-                #"video_url": video_url,
-                "image_url": image_url,
-                "new_color": new_color,
-                "specific_topic": "Bicycles" # folding bikes, electric bikes
-    }
-    try:
-        validated_data = InputValidator(**raw_data)
-        # Proceed with crew execution
-        with st.spinner("Analyzing and executing task..."):
-            # Run guardrail
-            #result = guard_crew.kickoff(inputs=validated_data.dict())
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(run_crew_async(guard_crew, inputs=validated_data.dict()))
-
-            # Check for termination condition
-            if "OFF_TOPIC" in result.raw:
-                st.warning(f"Session terminated: please check your inputs.")
-            else:
-                # Proceed with main agents
-                if "NOT_BICYCLE" in result.raw:
-                    st.warning(f"Please select a bicycle image. Skipping variant generation for now.")
-                    # Run crew_1 only
-                    #result = crew_1.kickoff(inputs=validated_data.dict())
+            # Validate inputs before passing to crew
+            raw_data = {"product": product,
+                        #"video_url": video_url,
+                        "image_url": image_url,
+                        "new_color": new_color,
+                        "specific_topic": "Bicycles" # folding bikes, electric bikes
+            }
+            try:
+                validated_data = InputValidator(**raw_data)
+                # Proceed with crew execution
+                with st.spinner("Analyzing and executing task..."):
+                    # Run guardrail
+                    #result = guard_crew.kickoff(inputs=validated_data.dict())
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
-                    result = loop.run_until_complete(run_crew_async(crew_1, inputs=validated_data.dict()))
-                    if result:
-                        # Display sentiment word clouds
-                        filesList = glob.glob(folderPath + "/*.png")
-                        for file in filesList:
-                            st.image(file, width=200)
+                    result = loop.run_until_complete(run_crew_async(guard_crew, inputs=validated_data.dict()))
 
-                else:
-                # Run both crews asynchronously
-                    #await main() # async cannot be outside async function
-                    asyncio.run(main())
+                    # Check for termination condition
+                    if "OFF_TOPIC" in result.raw:
+                        st.warning(f"Session terminated: please check your inputs.")
+                    else:
+                        # Proceed with main agents
+                        if "NOT_BICYCLE" in result.raw:
+                            st.warning(f"Please select a bicycle image. Skipping variant generation for now.")
+                            # Run crew_1 only
+                            #result = crew_1.kickoff(inputs=validated_data.dict())
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            result = loop.run_until_complete(run_crew_async(crew_1, inputs=validated_data.dict()))
+                            if result:
+                                # Display sentiment word clouds
+                                filesList = glob.glob(folderPath + "/*.png")
+                                for file in filesList:
+                                    st.image(file, width=200)
 
-    except ValidationError as e:
-        st.warning(f"Validation Error: {e}")
+                        else:
+                            # Run both crews asynchronously
+                            #await main() # async cannot be outside async function
+                            asyncio.run(main())
+
+            except ValidationError as e:
+                st.warning(f"Validation Error: {e}")
