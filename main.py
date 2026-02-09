@@ -48,7 +48,10 @@ from composio_openai_agents import OpenAIAgentsProvider
 
 # Import YOLO model for objection detection
 from PIL import Image
-from ultralytics import YOLO
+# Streamlit has issues with ultralytics YOLO import, so use rfdetr as alternative
+#from ultralytics import YOLO
+from rfdetr import RFDETRSmall
+from rfdetr.util.coco_classes import COCO_CLASSES
 # For base64 encoding
 import base64 
 import io
@@ -259,6 +262,32 @@ class YoloDetectorTool(BaseTool):
         return str(labels[0])
 
 yolo_detector_tool = YoloDetectorTool()
+
+class RFDetrInput(BaseModel):
+    """Input for RFDetrTool."""
+    image_path: str = Field(..., description="URL or local path to the image.")
+
+class RFDetrTool(BaseTool):
+    name: str = "RF-DETR Image Analyzer"
+    description: str = "Detects objects in images using RF-DETR."
+    args_schema: Type[BaseModel] = RFDetrInput
+
+    def _run(self, image_path: str) -> str:
+        # Load image and model
+        #image = Image.open(requests.get(image_path).content) # URL
+        image = Image.open(image_path) # or local path
+        model = RFDETRSmall()
+        detections = model.predict(image, threshold=0.5)
+        # Get the labels by mapping class IDs to class names
+        labels = [
+            f"{COCO_CLASSES[class_id]}"
+            for class_id in detections.class_id
+            ]
+        # Return label of delected object class
+        #return str(results.data)
+        return str(labels[0])
+
+rf_detr_tool = RFDetrTool()
 
 # Custom tool to generate sentiments word cloud
 class WordCloudToolInput(BaseModel):
@@ -521,7 +550,8 @@ topic_guard_agent = Agent(
     backstory="""You are a security expert specialized in ensuring that conversations
     stay on-topic and tasks are within scope. If a question is off-topic, you
     terminate the conversation and stop the crew.""",
-    tools=[yolo_detector_tool],
+    #tools=[yolo_detector_tool],
+    tools=[rf_detr_tool],
     allow_delegation=False,
     verbose=True,
     llm=llm
@@ -662,7 +692,6 @@ with col2:
     #st.title("AI-powered Market Research Assistant")
     st.markdown("<h2 style='margin-top: 0px;'>AI-powered Market Research Assistant</h2>", unsafe_allow_html=True)
 st.markdown("Hi, enter a folding bike product/brand, and let me help you with the market research.")
-
 
 # --- SIDEBAR: CONFIGURATION ---
 with st.sidebar:
