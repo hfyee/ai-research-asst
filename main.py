@@ -448,10 +448,9 @@ writer = Agent(
     llm=llm
 )
 
-# Use the 'FileWriterTool' to write the final content into a Markdown file 
-# inside the directory 'output_files'.
+# Common task for 3 agents to collaborate on
 report_task = Task(
-    description="""Write a well-researched, market analysis report on consumer 
+    description="""Write a well-researched, market analysis report on consumer
     product {product}.
 
     Target audience: Product Marketing Manager for {product} company
@@ -462,22 +461,23 @@ report_task = Task(
         3. Any regulatory compliance requirements in Singapore
         4. Major competitors, focusing on the top 2 competitors/products
         5. Competitor analysis including SWOT analysis
-        6. Consumer sentiment analysis
-        7. Recommendations for {product} company's R&D strategy.
-        8. Relevant supporting image and video links
+        6. Comparison table of key features and pricing 
+        7. Consumer sentiment analysis
+        8. Recommendations for {product} company's R&D strategy.
+
+    The report should have a compelling title, an executive summary, and a
+    conclusion.
 
     Collaborate with your teammates to ensure the report is well-researched,
-    comprehensive and accurate. 
+    comprehensive and accurate.
 
-    The report should be approximately 1000-1200 words in length.
-    Video links should be checked by video_validator agent. 
+    The report should be approximately 1000-1500 words in length.
     The report content should be reviewed by editor agent.
-
     """,
-    output_pydantic=MarketAnalysis,
-    expected_output="""A well-structured and comprehensive report adhering to the 
-    MarketAnalysis Pydantic model, and written in Markdown format.""",
-    #output_file='output_files/report.md',
+    #output_pydantic=MarketAnalysis
+    expected_output="""A well-structured and comprehensive report, written in 
+    Markdown format.""",
+    output_file='output_files/report.md',
     agent=writer # writer leads, but can delegate research to researcher
 )
 
@@ -537,6 +537,22 @@ generate_image_task = Task(
     """,
     expected_output="""An image URL of a product variant with the frame in {new_color}.""",
     context=[describe_image_task],
+    agent=image_analyst,
+    result_as_answer=True
+)
+
+# Create a task for both image analysis and generation
+generate_image_task_v2 = Task(
+    description="""Use the 'Base64EncodingTool' to encode the product image at
+    {image_url} to a base64 string that you can view. Analyze the image.
+
+    Then use the 'DallEImageTool' to create a photorealistic image
+    of a product variant based on the following criteria:
+
+    Only change the color of the product **frame** to {new_color}, maintaining
+    all other aspects exactly as they are in the original image.
+    """,
+    expected_output="""An image URL of a product variant with the frame in {new_color}.""",
     agent=image_analyst,
     result_as_answer=True
 )
@@ -602,7 +618,8 @@ crew_1 = Crew(
 # A/B testing crew
 crew_2 = Crew(
     agents=[image_analyst],
-    tasks=[describe_image_task, generate_image_task],
+    #tasks=[describe_image_task, generate_image_task],
+    tasks=[generate_image_task_v2],
     process=Process.sequential,
     verbose=False, # True will output long image base64 encoded string in the log
     output_log_file="output_files/crew_ab_log"
