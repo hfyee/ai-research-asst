@@ -516,33 +516,8 @@ image_analyst = Agent(
     verbose=True
 )
 
-# Create a task for image analysis
-describe_image_task = Task(
-    description="""Use the 'Base64EncodingTool' to encode the product image at
-    {image_url} to a base64 string that you can view.
-    Then analyze the image and describe it in detail.""",
-    expected_output="An accurate and detailed description of the product image",
-    #output_file='output_files/image_description.md',
-    agent=image_analyst
-)
-
-# Create a task for image generation
-generate_image_task = Task(
-    description="""Based on the analysis details of the original product image,
-    use the 'DallEImageTool' to create a photorealistic image of a product variant
-    according to the following criteria:
-
-    Only change the color of the product **frame** to {new_color}, maintaining
-    all other aspects exactly as they are in the original image.
-    """,
-    expected_output="""An image URL of a product variant with the frame in {new_color}.""",
-    context=[describe_image_task],
-    agent=image_analyst,
-    result_as_answer=True
-)
-
 # Create a task for both image analysis and generation
-generate_image_task_v2 = Task(
+generate_image_task = Task(
     description="""Use the 'Base64EncodingTool' to encode the product image at
     {image_url} to a base64 string that you can view. Analyze the image.
 
@@ -618,8 +593,7 @@ crew_1 = Crew(
 # A/B testing crew
 crew_2 = Crew(
     agents=[image_analyst],
-    #tasks=[describe_image_task, generate_image_task],
-    tasks=[generate_image_task_v2],
+    tasks=[generate_image_task],
     process=Process.sequential,
     verbose=False, # True will output long image base64 encoded string in the log
     output_log_file="output_files/crew_ab_log"
