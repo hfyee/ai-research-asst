@@ -48,10 +48,10 @@ from composio_openai_agents import OpenAIAgentsProvider
 
 # Import YOLO model for objection detection
 from PIL import Image
-# Streamlit has issues with ultralytics YOLO import, so use rfdetr as alternative
-from ultralytics import YOLO
-#from rfdetr import RFDETRSmall
-#from rfdetr.util.coco_classes import COCO_CLASSES
+# Streamlit has issues with ultralytics YOLO import, so use rfdetr.
+#from ultralytics import YOLO
+from rfdetr import RFDETRSmall
+from rfdetr.util.coco_classes import COCO_CLASSES
 # For base64 encoding
 import base64 
 import io
@@ -228,6 +228,7 @@ composio = Composio(provider=OpenAIAgentsProvider(), api_key=composio_api_key)
 # Composio Search toolkit, more than one tool
 composio_tools = composio.tools.get(user_id=composio_user_id, tools=["reddit"])
 
+'''
 # YOLO object detection model for topic guard agent
 class YoloToolInput(BaseModel):
     image_path: str = Field(..., description="URL or local path to the image.")
@@ -260,8 +261,6 @@ class YoloDetectorTool(BaseTool):
 
         # Return label of delected object class
         return str(labels[0])
-
-yolo_detector_tool = YoloDetectorTool()
 '''
 class RFDetrInput(BaseModel):
     """Input for RFDetrTool."""
@@ -287,8 +286,9 @@ class RFDetrTool(BaseTool):
         #return str(results.data)
         return str(labels[0])
 
-rf_detr_tool = RFDetrTool()
-'''
+#obj_detector_tool = YoloDetectorTool()
+obj_detector_tool = RFDetrTool()
+
 # Custom tool to generate sentiments word cloud
 class WordCloudToolInput(BaseModel):
     text: str = Field(description="The text to generate the word cloud from.")
@@ -366,17 +366,16 @@ class MarketAnalysis(BaseModel):
 video_researcher = Agent(
     role="Video Researcher",
     goal="Extract relevant information from YouTube videos",
-    backstory='You have a strong background in analyzing video content.',
+    backstory='An expert researcher who specializes in analyzing video content.',
     tools=[youtube_rag_tool],
     verbose=True,
 )
 
 video_research_task = Task(
     description="""Search for information about the R&D of Brompton's first electric
-    folding bike in the YouTube video at {video_url}, and provide a
-    comprehensive summary of the main points.""",
-    expected_output="""A detailed summary of the R&D strategy behind Brompton's
-    first electric folding bike from the video.""",
+    folding bike in the YouTube video at {video_url}.""",
+    expected_output="""A summary of the R&D strategy behind Brompton's first 
+    electric folding bike mentioned in the video.""",
     #output_file='./output_files/video.md',
     agent=video_researcher,
 )
@@ -387,7 +386,7 @@ video_research_task = Task(
 reddit_researcher = Agent(
     role="Reddit Search Assistant",
     goal="Help users search Reddit effectively",
-    backstory="You are a helpful assistant with access to Composio Search tools.",
+    backstory="A helpful assistant with access to Composio Search tools.",
     tools=composio_tools,
     llm=llm,
     verbose=True,
@@ -421,7 +420,7 @@ visualize_sentiments_task = Task(
 market_researcher = Agent(
     role='Market Researcher',
     goal="Conduct comprehensive market research about the assigned product.",
-    backstory="""You are an experienced market analyst with expertise in identifying 
+    backstory="""An experienced market analyst with expertise in identifying 
     market trends and opportunities as well as understanding consumer behavior.""",
     tools=[web_search_tool, rag_tool, youtube_tool],
     allow_delegation=True,
@@ -438,7 +437,7 @@ writer = Agent(
     goal="""Create comprehensive, well-structured reports combining the provided
     research and news analysis. Do not include any information that is not explicitly
     provided.""",
-    backstory="""You are a professional report writer with experience in business
+    backstory="""A professional report writer with experience in business
     intelligence and market analysis. You have an MBA from a top school. You excel
     at synthesizing information into clear and actionable insights.""",
     tools=[file_writer_tool],
@@ -488,8 +487,8 @@ editor = Agent(
     role="Content Editor",
     goal="""Ensure content quality and consistency. Also check if embedded video 
     links are accessible and not private/deleted.""",
-    backstory="""You are an experienced editor with an eye for detail. You excel
-    at critiquing market research and competive analysis reports, ensuring content
+    backstory="""An experienced editor with an eye for detail. You excel at 
+    critiquing market research and competive analysis reports, ensuring content
     meets high standards for clarity and accuracy.""",
     #tools=[youtube_rag_tool, wiki_tool, file_writer_tool],
     tools=[wiki_tool, rag_tool],
@@ -538,11 +537,10 @@ generate_image_task = Task(
 topic_guard_agent = Agent(
     role='Topic Guardrail Agent',
     goal='Ensure all user questions are strictly related to {specific_topic}.',
-    backstory="""You are a security expert specialized in ensuring that conversations
+    backstory="""A security expert specialized in ensuring that conversations
     stay on-topic and tasks are within scope. If a question is off-topic, you
     terminate the conversation and stop the crew.""",
-    tools=[yolo_detector_tool],
-    #tools=[rf_detr_tool],
+    tools=[obj_detector_tool],
     allow_delegation=False,
     verbose=True,
     llm=llm
@@ -557,8 +555,8 @@ check_topic_task = Task(
 )
 
 check_input_image_task = Task(
-    description="""Use the 'YoloDetectorTool' to determine if the image at {image_url}
-    is a bicycle. Return 'BICYCLE' or 'NOT_BICYCLE'.""",
+    description="""Use tool to determine if the image at {image_url} is a bicycle. 
+    Return 'BICYCLE' or 'NOT_BICYCLE'.""",
     expected_output="A string: 'BICYCLE' or 'NOT_BICYCLE'",
     agent=topic_guard_agent
 )
