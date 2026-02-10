@@ -49,9 +49,9 @@ from composio_openai_agents import OpenAIAgentsProvider
 # Import YOLO model for objection detection
 from PIL import Image
 # Streamlit has issues with ultralytics YOLO import, so use rfdetr as alternative
-#from ultralytics import YOLO
-from rfdetr import RFDETRSmall
-from rfdetr.util.coco_classes import COCO_CLASSES
+from ultralytics import YOLO
+#from rfdetr import RFDETRSmall
+#from rfdetr.util.coco_classes import COCO_CLASSES
 # For base64 encoding
 import base64 
 import io
@@ -211,7 +211,7 @@ web_search_tool = TavilySearchTool(
         "https://de.dahon.com/pages/technology?srsltid=AfmBOopaKrg-aASd49Nwetbyxas-XzNopsGSVhGln0IIx6IJPi1T39et",
         "https://www.straitstimes.com/paid-press-releases/dahon-v-a-revolutionary-bike-tech-pushing-a-new-frontier-in-green-mobility-20250825",
         "https://www.ternbicycles.com/en/explore/choosing-bike/tern-non-electric-bike-buyer-s-guide",
-        "https://www.cyclingnews.com/reviews/"
+        "https://www.cyclingnews.com/bikes/reviews/"
     ])
 
 wiki_tool = WikipediaTool() # for quick, general topical overview, as a starting point for research
@@ -262,7 +262,7 @@ class YoloDetectorTool(BaseTool):
         return str(labels[0])
 
 yolo_detector_tool = YoloDetectorTool()
-
+'''
 class RFDetrInput(BaseModel):
     """Input for RFDetrTool."""
     image_path: str = Field(..., description="URL or local path to the image.")
@@ -288,7 +288,7 @@ class RFDetrTool(BaseTool):
         return str(labels[0])
 
 rf_detr_tool = RFDetrTool()
-
+'''
 # Custom tool to generate sentiments word cloud
 class WordCloudToolInput(BaseModel):
     text: str = Field(description="The text to generate the word cloud from.")
@@ -541,8 +541,8 @@ topic_guard_agent = Agent(
     backstory="""You are a security expert specialized in ensuring that conversations
     stay on-topic and tasks are within scope. If a question is off-topic, you
     terminate the conversation and stop the crew.""",
-    #tools=[yolo_detector_tool],
-    tools=[rf_detr_tool],
+    tools=[yolo_detector_tool],
+    #tools=[rf_detr_tool],
     allow_delegation=False,
     verbose=True,
     llm=llm
