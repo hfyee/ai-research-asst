@@ -148,7 +148,7 @@ rag_docs_path = os.path.abspath('rag_docs')
 rag_tool.add(data_type="directory", path=rag_docs_path)
 # Add content from web page
 rag_tool.add(data_type="website", url="https://onemotoring.lta.gov.sg/content/onemotoring/home/buying/vehicle-types-and-registrations/PAB.html")
-rag_tool.add(data_type="website", url="https://en.wikipedia.org/wiki/List_of_bicycle_parts")
+rag_tool.add(data_type="website", url="https://en.wikipedia.org/wiki/Folding_bicycle")
 
 # Tools
 class GenerationTool(BaseTool):
@@ -374,9 +374,9 @@ video_researcher = Agent(
 video_research_task = Task(
     description="""Search for information about the R&D of Brompton's first electric
     folding bike in the YouTube video at {video_url}.""",
-    expected_output="""A summary of the R&D strategy behind Brompton's first 
+    expected_output="""A summary of the R&D strategy underlying Brompton's first 
     electric folding bike mentioned in the video.""",
-    #output_file='./output_files/video.md',
+    #output_file='./output_files/video_transcription.md',
     agent=video_researcher,
 )
 
@@ -389,12 +389,11 @@ reddit_researcher = Agent(
     backstory="A helpful assistant with access to Composio Search tools.",
     tools=composio_tools,
     llm=llm,
-    verbose=True,
-    max_iter=5,
+    verbose=True
 )
 
 reddit_search_task = Task(
-    description='Search Reddit forums to get consumer feedback on {product}.',
+    description="""Search Reddit forums to get consumer feedback on {product}.""",
     expected_output="Consumer sentiment analysis from Reddit forums",
     #output_file='./output_files/reddit.md',
     agent=reddit_researcher,
@@ -417,16 +416,18 @@ visualize_sentiments_task = Task(
 # -----------------------------
 # market researcher
 # -----------------------------
-market_researcher = Agent(
-    role='Market Researcher',
-    goal="Conduct comprehensive market research about the assigned product.",
-    backstory="""An experienced market analyst with expertise in identifying 
-    market trends and opportunities as well as understanding consumer behavior.""",
-    tools=[web_search_tool, rag_tool, youtube_tool],
+analyst = Agent(
+    role='Senior Research Analyst',
+    goal="""Conduct comprehensive market research about consumer product {product}.""",
+    backstory="""An experienced research analyst with expertise in identifying
+    market trends and opportunities as well as understanding consumer behavior.
+    You always starts with a foundational understanding from Wikipedia before 
+    diving deeper. """,
+    tools=[wiki_tool, web_search_tool, rag_tool, youtube_tool],
     allow_delegation=True,
-    max_iter=15,
+    max_iter=10,
+    verbose=True,
     llm=llm,
-    verbose=True
 )
 
 # -----------------------------
@@ -442,9 +443,9 @@ writer = Agent(
     at synthesizing information into clear and actionable insights.""",
     tools=[file_writer_tool],
     allow_delegation=True,
-    max_iter=15,
+    max_iter=10,
     verbose=True,
-    llm=llm
+    llm=llm,
 )
 
 # Common task for 3 agents to collaborate on
@@ -481,7 +482,7 @@ report_task = Task(
 )
 
 # -----------------------------
-# editor
+# editor (for quality assurance)
 # -----------------------------
 editor = Agent(
     role="Content Editor",
@@ -493,7 +494,7 @@ editor = Agent(
     #tools=[youtube_rag_tool, wiki_tool, file_writer_tool],
     tools=[wiki_tool, rag_tool],
     allow_delegation=True,
-    max_iter=15,
+    max_iter=10,
     verbose=True,
     llm=llm
 )
@@ -511,8 +512,8 @@ image_analyst = Agent(
     tools=[encode_image_base64, dalle_tool],
     allow_delegation=False,
     max_iter=10,
-    llm=vision_llm,
     verbose=True
+    llm=vision_llm,
 )
 
 # Create a task for both image analysis and generation
@@ -578,7 +579,7 @@ guard_crew = Crew(
 
 # Marketing crew
 crew_1 = Crew(
-    agents=[reddit_researcher, market_researcher, writer, editor],
+    agents=[reddit_researcher, analyst, writer, editor],
     tasks=[reddit_search_task, visualize_sentiments_task, report_task],
     process=Process.sequential, # Process.sequential | Process.hierarchical
     #manager_llm=llm, # manager_llm=llm | manager_agent=manager
