@@ -39,7 +39,7 @@ from langchain_core.tools import tool
 # Import pydantic packages
 from pydantic import BaseModel, Field, field_validator, ValidationError
 from pathlib import Path
-from typing import Type, Optional, Dict, List
+from typing import Type, Optional, Any, Dict, List
 import requests
 
 # Import Composio packages
@@ -355,7 +355,8 @@ class MarketAnalysis(BaseModel):
     key_trends: List[str] = Field(description="List of identified market trends")
     market_size: str = Field(description="Estimated market size")
     competitors: List[str] = Field(description="Major competitors in the space")
-    competitor_analysis: Optional[Dict[str, Dict[str, str]]] = Field(default_factory=dict, description="Analysis of competitor products")
+    #competitor_analysis: Optional[Dict[str, Dict[str, str]]] = Field(default_factory=dict, description="Analysis of competitor products")
+    competitor_analysis: Dict[str, Any]] = Field(default_factory=dict, description="Analysis of competitor products")
     conclusion: str = Field(description="Conclusion or summary of the research")
 
 # Define agents and tasks
@@ -566,7 +567,7 @@ generate_image_task = Task(
 # -----------------------------
 topic_guard_agent = Agent(
     role='Topic Guardrail Agent',
-    goal="""Ensure all user questions are strictly related to {topic}.""",
+    goal="""Ensure user questions are related to {topic}.""",
     backstory="""A security expert specialized in ensuring that conversations
     stay on-topic and tasks are within scope. If a question is off-topic, you
     terminate the conversation and stop the crew.""",
