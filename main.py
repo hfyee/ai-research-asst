@@ -430,6 +430,20 @@ analyst = Agent(
     llm=llm,
 )
 
+market_research_task = Task(
+    description="""Research the market for {product}. Include:
+    1. Key market trends
+    2. Product demand
+    3. Market size
+    4. Consumer preferences and willingness to pay
+    5. Major competitors""",
+    context=[reddit_search_task],
+    expected_output="""Comprehensive, well-structured market research findings that 
+    are easy to synthesize into a report""",
+    #output_file='output_files/market_research.md',
+    agent=analyst
+)
+
 # -----------------------------
 # writer
 # -----------------------------
@@ -448,8 +462,7 @@ writer = Agent(
     llm=llm,
 )
 
-# Common task for 3 agents to collaborate on
-report_task = Task(
+writing_task = Task(
     description="""Write a well-researched, market analysis report on consumer
     product {product}.
 
@@ -459,14 +472,11 @@ report_task = Task(
         1. Key market trends
         2. Market size
         3. Any regulatory compliance requirements in Singapore
-        4. Major competitors, focusing on the top 2 competitors/products
+        4. Major competitors, focusing on the current top 2 competitors
         5. Competitor analysis including SWOT analysis
-        6. Comparison table of key features and pricing 
+        6. Comparison table of key features and pricing
         7. Consumer sentiment analysis
         8. Recommendations for {product} company's R&D strategy.
-
-    The report should have a compelling title, an executive summary, and a
-    conclusion.
 
     Collaborate with your teammates to ensure the report is well-researched,
     comprehensive and accurate.
@@ -474,10 +484,10 @@ report_task = Task(
     The report should be approximately 1000-1500 words in length.
     The report content should be reviewed by editor agent.
     """,
-    #output_pydantic=MarketAnalysis
-    expected_output="""A well-structured and comprehensive report, written in 
+    expected_output="""A well-structured and comprehensive report, written in
     Markdown format.""",
-    output_file='output_files/report.md',
+    context=[market_research_task],
+    #output_file='output_files/draft_report.md',
     agent=writer # writer leads, but can delegate research to researcher
 )
 
@@ -486,17 +496,36 @@ report_task = Task(
 # -----------------------------
 editor = Agent(
     role="Content Editor",
-    goal="""Ensure content quality and consistency. Also check if embedded video 
-    links are accessible and not private/deleted.""",
-    backstory="""An experienced editor with an eye for detail. You excel at 
+    goal="Ensure content quality and consistency.",
+    backstory="""An experienced editor with an eye for detail. You excel at
     critiquing market research and competive analysis reports, ensuring content
     meets high standards for clarity and accuracy.""",
-    #tools=[youtube_rag_tool, wiki_tool, file_writer_tool],
-    tools=[wiki_tool, rag_tool],
+    tools=[wiki_tool, rag_tool, file_writer_tool],
     allow_delegation=True,
     max_iter=10,
     verbose=True,
-    llm=llm
+    llm=llm,
+)
+
+editing_task = Task(
+    description="""Review and improve the report.
+
+    Target audience: Product Marketing Manager for {product} company
+
+    Your review should:
+    1. Check for consistency in tone and style
+    2. Improve clarity and readability
+    3. Ensure content is comprehensive and accurate
+    4. Check that there is a clear takeaway
+    5. Check for unintended biases
+    6. Check if embedded video links are accessible and not private/deleted
+
+    Use the 'FileWriterTool' to write the final content into a markdown file 
+    inside the directory 'output_files'.""",
+    context=[writing_task],
+    expected_output="A markdown file saved in the 'output_files' directory.",
+    output_file='output_files/final_report.md',
+    agent=editor
 )
 
 # -----------------------------
@@ -537,7 +566,7 @@ generate_image_task = Task(
 # -----------------------------
 topic_guard_agent = Agent(
     role='Topic Guardrail Agent',
-    goal='Ensure all user questions are strictly related to {specific_topic}.',
+    goal="""Ensure all user questions are strictly related to {topic}.""",
     backstory="""A security expert specialized in ensuring that conversations
     stay on-topic and tasks are within scope. If a question is off-topic, you
     terminate the conversation and stop the crew.""",
@@ -549,7 +578,7 @@ topic_guard_agent = Agent(
 
 check_topic_task = Task(
     description="""Analyze the user inputs: {product} and {new_color}.
-    Determine if {product} is about {specific_topic} AND {new_color} is a valid color.
+    Determine if {product} is about {topic} AND {new_color} is a valid color.
     Return 'ON_TOPIC' or 'OFF_TOPIC'.""",
     expected_output="A string: 'ON_TOPIC' or 'OFF_TOPIC'",
     agent=topic_guard_agent
@@ -580,13 +609,13 @@ guard_crew = Crew(
 # Marketing crew
 crew_1 = Crew(
     agents=[reddit_researcher, analyst, writer, editor],
-    tasks=[reddit_search_task, visualize_sentiments_task, report_task],
+    tasks=[reddit_search_task, visualize_sentiments_task, market_research_task, writing_task, editing_task],
     process=Process.sequential, # Process.sequential | Process.hierarchical
     #manager_llm=llm, # manager_llm=llm | manager_agent=manager
     planning=True,
     memory=True, # enable memory to keep context
     verbose=False, # True to see collaboration between agents
-    output_log_file="output_files/crew_mkt_log"
+    output_log_file="output_files/research_crew_log"
 )
 
 # A/B testing crew
@@ -606,10 +635,10 @@ class InputValidator(BaseModel):
     #video_url: str
     image_url: str
     new_color: str
-    specific_topic: str
+    topic: str
 
-    #@field_validator('product', 'video_url', 'image_url', 'new_color', 'specific_topic')
-    @field_validator('product', 'image_url', 'new_color', 'specific_topic')
+    #@field_validator('product', 'video_url', 'image_url', 'new_color', 'topic')
+    @field_validator('product', 'image_url', 'new_color', 'topic')
     @classmethod
     def check_not_empty(cls, v) -> str:
         if v is None or len(v.strip()) == 0:
@@ -723,7 +752,7 @@ if st.button("Run Task"):
                         #"video_url": video_url,
                         "image_url": image_url,
                         "new_color": new_color,
-                        "specific_topic": "Bicycles" # folding bikes, electric bikes
+                        "topic": "Folding bicycles" # folding bikes, electric bikes
             }
             try:
                 validated_data = InputValidator(**raw_data)
