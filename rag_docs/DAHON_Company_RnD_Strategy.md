@@ -4,7 +4,7 @@
 - The company's goal was to design bicycles that could fold down into compact packages without sacrificing strength or ride quality.
 - They aimed to make bicycles fit better into an urban dweller's life.
 - The company targeted the mass market with bikes that are affordable, durable, and practical.
-- Even as folding bikes existed, Dhan's design focus was on better ride quality, faster folds, lighter frames, and rigidity akin to full-size frames in compact forms.
+- Even as folding bikes existed, DAHON's design focus was on better ride quality, faster folds, lighter frames, and rigidity akin to full-size frames in compact forms.
 
 ## 2. Technical Achievement/Expertise
 - Development of a technology called Deltech involving 16 patents that enhance bike frame stiffness and rigidity.
@@ -35,4 +35,4 @@
 
 ---
 
-This summary encapsulates the company's R&D strategy, technical expertise, design philosophy, and innovative culture as presented in the video from Dhan's Shenzhen headquarters and interviews with Dr. Han and team members.
+This summary encapsulates the company's R&D strategy, technical expertise, design philosophy, and innovative culture as presented in the video from DAHON's Shenzhen headquarters and interviews with Dr. Han and team members.
