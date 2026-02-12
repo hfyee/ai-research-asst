@@ -303,15 +303,16 @@ class WordCloudGenerationTool(BaseTool):
 
 word_cloud_tool = WordCloudGenerationTool()
 
-# Callback function to print intermediate outputs
+# Callback function
 def show_word_clouds(output: TaskOutput):
     """Callback function to print task output immediately upon completion."""
     print(f"\n### Sentiment analysis completed ###")
     # Display word clouds
+    folderPath = "output_files"
     filesList = glob.glob(folderPath + "/*.png")
     for file in filesList:
         caption = 'Positive feedback word cloud' if 'positive' in file else 'Complaints word cloud'
-        st.image(file, caption=caption, width=200)
+        st.image(file, caption=caption, width=300)
 
 # Define Pydantic model for structured task output
 class MarketAnalysis(BaseModel):
@@ -649,10 +650,11 @@ async def main():
         if i==1:
             st.write(f"Crew {i} Result:", result.raw)
             # Display sentiment word clouds
+            folderPath = "output_files"
             filesList = glob.glob(folderPath + "/*.png")
             for file in filesList:
                 caption = 'Positive feedback word cloud' if 'positive' in file else 'Complaints word cloud'
-                st.image(file, caption=caption, width=200)
+                st.image(file, caption=caption, width=300)
 
         if i == 2:
             st.divider()
