@@ -390,7 +390,7 @@ analyst = Agent(
     market trends and opportunities as well as understanding consumer behavior.
     You always starts with a foundational understanding from Wikipedia before 
     diving deeper. """,
-    tools=[wiki_tool, web_search_tool, rag_tool, youtube_tool],
+    tools=[rag_tool, wiki_tool, web_search_tool, youtube_tool],
     allow_delegation=True,
     max_iter=10,
     verbose=True,
@@ -404,7 +404,6 @@ market_research_task = Task(
     3. Market size
     4. Consumer preferences and willingness to pay
     5. Major competitors""",
-    context=[reddit_search_task],
     expected_output="""Comprehensive, well-structured market research findings that 
     are easy to synthesize into a report""",
     #output_file='output_files/market_research.md',
@@ -422,7 +421,6 @@ writer = Agent(
     backstory="""A professional report writer with experience in business
     intelligence and market analysis. You have an MBA from a top school. You excel
     at synthesizing information into clear and actionable insights.""",
-    tools=[file_writer_tool],
     allow_delegation=True,
     max_iter=10,
     verbose=True,
@@ -467,7 +465,7 @@ editor = Agent(
     backstory="""An experienced editor with an eye for detail. You excel at
     critiquing market research and competive analysis reports, ensuring content
     meets high standards for clarity and accuracy.""",
-    tools=[wiki_tool, rag_tool, file_writer_tool],
+    tools=[rag_tool, wiki_tool, file_writer_tool],
     allow_delegation=True,
     max_iter=10,
     verbose=True,
