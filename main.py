@@ -254,25 +254,6 @@ class RFDetrTool(BaseTool):
 #obj_detector_tool = YoloDetectorTool()
 obj_detector_tool = RFDetrTool()
 
-# Custom tool to generate sentiments word cloud
-class WordCloudToolInput(BaseModel):
-    text: str = Field(description="The text to generate the word cloud from.")
-    colormap: str = Field(description="The color scheme for representing the words.")
-    output_image_path: str = Field(description="The path where the word cloud image will be saved.")
-
-class WordCloudGenerationTool(BaseTool):
-    name: str = "Word Cloud Generator"
-    description: str = "Generates a word cloud image based on input text and saves it to a specified path."
-    args_schema: Type[BaseModel] = WordCloudToolInput
-
-    def _run(self, text: str, colormap: str, output_image_path: str) -> str:
-        from wordcloud import WordCloud
-        wordcloud = WordCloud(width=800, height=400, background_color='white', colormap=colormap).generate(text)
-        wordcloud.to_file(output_image_path)
-        return f"Word cloud saved to {output_image_path}"
-
-word_cloud_tool = WordCloudGenerationTool()
-
 # Multimodal agent requires base64 encoding for image data
 # As base64 will exceed GPT-4o TPM limit of 30K, lower image resolution before encoding.
 class LowResBase64EncodingToolInput(BaseModel):
@@ -302,6 +283,25 @@ class LowResBase64EncodingTool(BaseTool):
         return encoded_string
 
 encode_image_base64 = LowResBase64EncodingTool()
+
+# Custom tool to generate sentiments word cloud
+class WordCloudToolInput(BaseModel):
+    text: str = Field(description="The text to generate the word cloud from.")
+    colormap: str = Field(description="The color scheme for representing the words.")
+    output_image_path: str = Field(description="The path where the word cloud image will be saved.")
+
+class WordCloudGenerationTool(BaseTool):
+    name: str = "Word Cloud Generator"
+    description: str = "Generates a word cloud image based on input text and saves it to a specified path."
+    args_schema: Type[BaseModel] = WordCloudToolInput
+
+    def _run(self, text: str, colormap: str, output_image_path: str) -> str:
+        from wordcloud import WordCloud
+        wordcloud = WordCloud(width=800, height=400, background_color='white', colormap=colormap).generate(text)
+        wordcloud.to_file(output_image_path)
+        return f"Word cloud saved to {output_image_path}"
+
+word_cloud_tool = WordCloudGenerationTool()
 
 # Callback function to print intermediate outputs
 def show_word_clouds(output: TaskOutput):
