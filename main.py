@@ -356,7 +356,7 @@ class MarketAnalysis(BaseModel):
     market_size: str = Field(description="Estimated market size")
     competitors: List[str] = Field(description="Major competitors in the space")
     #competitor_analysis: Optional[Dict[str, Dict[str, str]]] = Field(default_factory=dict, description="Analysis of competitor products")
-    competitor_analysis: Dict[str, Any]] = Field(default_factory=dict, description="Analysis of competitor products")
+    competitor_analysis: Dict[str, Any] = Field(default_factory=dict, description="Analysis of competitor products")
     conclusion: str = Field(description="Conclusion or summary of the research")
 
 # Define agents and tasks
