@@ -217,7 +217,6 @@ web_search_tool = TavilySearchTool(
 wiki_tool = WikipediaTool() # for quick, general topical overview, as a starting point for research
 dalle_tool = DallEImageTool()
 youtube_tool = YouTubeSearchTool() # web scraping on YouTube search results page
-#youtube_rag_tool = YoutubeVideoSearchTool(video_url='https://www.youtube.com/watch?v=lhDoB9rGbGQ', summarize=True)
 youtube_rag_tool = YoutubeVideoSearchTool(summarize=True)
 file_writer_tool = FileWriterTool(directory='output_files')
 code_interpreter = CodeInterpreterTool()
@@ -228,40 +227,6 @@ composio = Composio(provider=OpenAIAgentsProvider(), api_key=composio_api_key)
 # Composio Search toolkit, more than one tool
 composio_tools = composio.tools.get(user_id=composio_user_id, tools=["reddit"])
 
-'''
-# YOLO object detection model for topic guard agent
-class YoloToolInput(BaseModel):
-    image_path: str = Field(..., description="URL or local path to the image.")
-
-class YoloDetectorTool(BaseTool):
-    name: str = "YOLO Object Detector"
-    description: str = "Detects objects in images using YOLO."
-    args_schema: Type[BaseModel] = YoloToolInput
-
-    def _run(self, image_path: str) -> str:
-        # Load image and model
-        #image = Image.open(requests.get(image_path).content) # URL
-        image = Image.open(image_path) # or local path
-        model = YOLO('yolo11n.pt')
-
-        # Run inference
-        results = model.predict(image, conf=0.5)
-
-        # Assuming only one image is processed and results is a list with one Results object
-        # Get the first (and likely only) results object
-        ultralytics_results = results[0]
-        labels = []
-        # Populate labels list for the LabelAnnotator
-        for box in ultralytics_results.boxes:
-            class_id = int(box.cls[0])
-            class_name = model.names[class_id]
-            confidence = box.conf[0]
-            print(f"Detected: {class_name} with confidence {confidence:.2f}")
-            labels.append(class_name)
-
-        # Return label of delected object class
-        return str(labels[0])
-'''
 class RFDetrInput(BaseModel):
     """Input for RFDetrTool."""
     image_path: str = Field(..., description="URL or local path to the image.")
@@ -542,7 +507,7 @@ image_analyst = Agent(
     tools=[encode_image_base64, dalle_tool],
     allow_delegation=False,
     max_iter=10,
-    verbose=True
+    verbose=True,
     llm=vision_llm,
 )
 
@@ -633,13 +598,12 @@ crew_2 = Crew(
 # Validate inputs before passing to crew
 class InputValidator(BaseModel):
     product: str
-    #video_url: str
+    video_url: str
     image_url: str
     new_color: str
     topic: str
 
-    #@field_validator('product', 'video_url', 'image_url', 'new_color', 'topic')
-    @field_validator('product', 'image_url', 'new_color', 'topic')
+    @field_validator('product', 'video_url', 'image_url', 'new_color', 'topic')
     @classmethod
     def check_not_empty(cls, v) -> str:
         if v is None or len(v.strip()) == 0:
@@ -718,7 +682,7 @@ with st.sidebar:
     st.header("⚙️ User inputs")
     product = st.text_input("Product:", placeholder="e.g., Tern folding bike")
     #video_url = st.text_input("Video link for analysis:", value="https://www.youtube.com/watch?v=lhDoB9rGbGQ")
- 
+    video_url = "https://www.youtube.com/watch?v=lhDoB9rGbGQ"
     folderPath = os.path.abspath('input_files')
     filesList = glob.glob(folderPath + "/*")
     basenames = [os.path.basename(f) for f in filesList]
@@ -748,45 +712,40 @@ if st.button("Run Task"):
             for file in filesList:
                 os.remove(file)
 
-            # Validate inputs before passing to crew
-            raw_data = {"product": product,
-                        #"video_url": video_url,
-                        "image_url": image_url,
-                        "new_color": new_color,
-                        "topic": "Folding bicycles" # folding bikes, electric bikes
-            }
-            try:
-                validated_data = InputValidator(**raw_data)
-                # Proceed with crew execution
-                with st.spinner("Analyzing and executing task..."):
-                    # Run guardrail
-                    #result = guard_crew.kickoff(inputs=validated_data.dict())
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    result = loop.run_until_complete(run_crew_async(guard_crew, inputs=validated_data.dict()))
+        # Validate inputs before passing to crew
+        raw_data = {"product": product,
+            "video_url": video_url,
+            "image_url": image_url,
+            "new_color": new_color,
+            "topic": "Folding bicycles" # folding bikes, electric bikes
+        }
 
-                    # Check for termination condition
-                    if "OFF_TOPIC" in result.raw:
-                        st.warning(f"Session terminated: please check your inputs.")
+        try:
+            validated_data = InputValidator(**raw_data)
+            # Proceed with crew execution
+            with st.spinner("Analyzing and executing task..."):
+                # Run guardrail
+                 #result = guard_crew.kickoff(inputs=validated_data.dict())
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                result = loop.run_until_complete(run_crew_async(guard_crew, inputs=validated_data.dict()))
+
+                # Check for termination condition
+                if "OFF_TOPIC" in result.raw:
+                    st.warning(f"Session terminated: please check your inputs.")
+                else:
+                    # Proceed with main agents
+                    if "NOT_BICYCLE" in result.raw:
+                        st.warning(f"Please select a bicycle image. Skipping variant generation for now.")
+                        # Run crew_1 only
+                        #result = crew_1.kickoff(inputs=validated_data.dict())
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        result = loop.run_until_complete(run_crew_async(crew_1, inputs=validated_data.dict()))
                     else:
-                        # Proceed with main agents
-                        if "NOT_BICYCLE" in result.raw:
-                            st.warning(f"Please select a bicycle image. Skipping variant generation for now.")
-                            # Run crew_1 only
-                            #result = crew_1.kickoff(inputs=validated_data.dict())
-                            loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(loop)
-                            result = loop.run_until_complete(run_crew_async(crew_1, inputs=validated_data.dict()))
-                            if result:
-                                # Display sentiment word clouds
-                                filesList = glob.glob(folderPath + "/*.png")
-                                for file in filesList:
-                                    st.image(file, width=200)
+                        # Run both crews asynchronously
+                        #await main() # async cannot be outside async function
+                        asyncio.run(main())
 
-                        else:
-                            # Run both crews asynchronously
-                            #await main() # async cannot be outside async function
-                            asyncio.run(main())
-
-            except ValidationError as e:
-                st.warning(f"Validation Error: {e}")
+        except ValidationError as e:
+            st.warning(f"Validation Error: {e}")
