@@ -123,7 +123,7 @@ vectordb: VectorDbConfig = {
 embedding_model: ProviderSpec = {
     "provider": "openai",
     "config": {
-        "model_name": "text-embedding-3-small"
+        "model_name": "text-embedding-3-large"
     }
 }
 
