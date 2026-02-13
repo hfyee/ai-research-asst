@@ -98,7 +98,7 @@ qa_llm = ChatOpenAI(
 )
 
 #vlm = LLM(
-#    model="gpt-4o",
+#    model="gpt-4.1",
 #    api_key=openai_api_key,
 #    temperature=0.2
 #)
