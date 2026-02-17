@@ -24,6 +24,6 @@ types-requests
 wikipedia
 wordcloud
 gunicorn
-google-genai==1.49.0
+google-genai
 numpy
 opencv-python-headless
