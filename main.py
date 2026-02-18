@@ -571,7 +571,7 @@ guard_crew = Crew(
     process=Process.sequential
 )
 
-# Marketing crew
+# Research crew
 crew_1 = Crew(
     agents=[reddit_researcher, analyst, writer, editor],
     tasks=[reddit_search_task, visualize_sentiments_task, market_research_task, writing_task, editing_task],
@@ -694,11 +694,11 @@ with st.sidebar:
     new_color = st.text_input("New color for product variant:", placeholder="e.g., white, blue, gold, red, green")
     
     st.divider()
-    #st.info("Version v0.2.0")
     if st.button("Reset Session"):
         st.session_state.clear()
         st.rerun()
-
+    st.info("Version v0.2.0")
+    
 if st.button("Run Task"):
     if not product:
         st.error("Please enter a product name.")
