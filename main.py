@@ -535,7 +535,6 @@ topic_guard_agent = Agent(
     backstory="""A security expert specialized in ensuring that conversations
     stay on-topic and tasks are within scope. If a question is off-topic, you
     terminate the conversation and stop the crew.""",
-    tools=[obj_detector_tool],
     allow_delegation=False,
     verbose=True,
     llm=llm
@@ -552,6 +551,7 @@ check_topic_task = Task(
 check_input_image_task = Task(
     description="""Use tool to determine if the image at {image_url} is a bicycle. 
     Return 'BICYCLE' or 'NOT_BICYCLE'.""",
+    tools=[obj_detector_tool],
     expected_output="A string: 'BICYCLE' or 'NOT_BICYCLE'",
     agent=topic_guard_agent
 )
