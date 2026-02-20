@@ -484,12 +484,11 @@ editing_task = Task(
     4. Check that there is a clear takeaway
     5. Check for unintended biases
     6. Check if embedded video links are accessible and not private/deleted
-
-    Use the 'FileWriterTool' to write the final content into a markdown file 
-    inside the directory 'output_files'.""",
+    """,
     context=[writing_task],
-    expected_output="A markdown file saved in the 'output_files' directory.",
-    output_file='output_files/final_report.md',
+    #expected_output="A markdown file saved in the 'output_files' directory.",
+    expected_output="A high-quality market analysis report in Markdown format",
+    #output_file='output_files/final_report.md',
     agent=editor
 )
 
