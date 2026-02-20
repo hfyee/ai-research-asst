@@ -268,7 +268,7 @@ class LowResBase64EncodingTool(BaseTool):
     description: str = 'Useful for encoding an image file to a base64 string.'
     args_schema: Type[BaseModel] = LowResBase64EncodingToolInput
 
-    def _run(self, image_path: str, max_width: int = 800, max_height: int = 800, quality: int = 60) -> str:
+    def _run(self, image_path: str, max_width: int = 800, max_height: int = 800, quality: int = 85) -> str:
         # Open and resize image
         img = Image.open(image_path)
         img.thumbnail((max_width, max_height)) # PIL's thumbnail expects a tuple
@@ -392,7 +392,7 @@ analyst = Agent(
     diving deeper. """,
     tools=[rag_tool, wiki_tool, web_search_tool, youtube_tool],
     allow_delegation=True,
-    max_iter=10,
+    max_iter=7,
     verbose=True,
     llm=llm,
 )
@@ -422,7 +422,7 @@ writer = Agent(
     intelligence and market analysis. You have an MBA from a top school. You excel
     at synthesizing information into clear and actionable insights.""",
     allow_delegation=True,
-    max_iter=10,
+    max_iter=7,
     verbose=True,
     llm=llm,
 )
@@ -467,7 +467,7 @@ editor = Agent(
     meets high standards for clarity and accuracy.""",
     tools=[rag_tool, wiki_tool, file_writer_tool],
     allow_delegation=True,
-    max_iter=10,
+    max_iter=7,
     verbose=True,
     llm=llm,
 )
@@ -505,7 +505,7 @@ image_analyst = Agent(
     multimodal=True,
     tools=[encode_image_base64, dalle_tool],
     allow_delegation=False,
-    max_iter=10,
+    max_iter=7,
     verbose=True,
     llm=vlm,
 )
