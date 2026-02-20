@@ -50,8 +50,8 @@ from composio_openai_agents import OpenAIAgentsProvider
 from PIL import Image
 # Streamlit has issues with ultralytics YOLO import, so use rfdetr.
 #from ultralytics import YOLO
-from rfdetr import RFDETRSmall
-from rfdetr.util.coco_classes import COCO_CLASSES
+#from rfdetr import RFDETRSmall
+#from rfdetr.util.coco_classes import COCO_CLASSES
 # For base64 encoding
 import base64 
 import io
@@ -226,7 +226,7 @@ code_interpreter = CodeInterpreterTool()
 composio = Composio(provider=OpenAIAgentsProvider(), api_key=composio_api_key)
 # Composio Search toolkit, more than one tool
 composio_tools = composio.tools.get(user_id=composio_user_id, tools=["reddit"])
-
+_ = '''
 class RFDetrInput(BaseModel):
     """Input for RFDetrTool."""
     image_path: str = Field(..., description="URL or local path to the image.")
@@ -253,7 +253,7 @@ class RFDetrTool(BaseTool):
 
 #obj_detector_tool = YoloDetectorTool()
 obj_detector_tool = RFDetrTool()
-
+'''
 # Multimodal agent requires base64 encoding for image data
 # As base64 will exceed GPT-4o TPM limit of 30K, lower image resolution before encoding.
 class LowResBase64EncodingToolInput(BaseModel):
@@ -551,8 +551,8 @@ check_topic_task = Task(
 check_input_image_task = Task(
     description="""Use tool to determine if the image at {image_url} is a bicycle. 
     Return 'BICYCLE' or 'NOT_BICYCLE'.""",
-    tools=[obj_detector_tool],
     expected_output="A string: 'BICYCLE' or 'NOT_BICYCLE'",
+    #tools=[obj_detector_tool],
     agent=topic_guard_agent
 )
 
@@ -567,7 +567,8 @@ aggregate_checks_task = Task(
 # Define the crews
 guard_crew = Crew(
     agents=[topic_guard_agent],
-    tasks=[check_topic_task, check_input_image_task, aggregate_checks_task],
+    #tasks=[check_topic_task, check_input_image_task, aggregate_checks_task],
+    tasks=[check_topic_task],
     process=Process.sequential
 )
 
